@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16.1
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    volumes:
+      - "${POSTGRES_PATH}/postgres/data:/var/lib/postgresql/data"
+      - "${POSTGRES_PATH}/postgres/init-scripts:/docker-entrypoint-initdb.d"
+      - "${POSTGRES_PATH}/postgres/conf/postgresql.conf:/etc/postgresql/postgresql.conf"
+
+networks:
+  default:
+    external: true
+    name: "certificate-watcher-net"
