@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16.1
+    restart: always
     ports:
       - "5432:5432"
     environment:
@@ -11,6 +12,20 @@ services:
       - "${POSTGRES_PATH}/postgres/init-scripts:/docker-entrypoint-initdb.d"
       - "${POSTGRES_PATH}/postgres/conf/postgresql.conf:/etc/postgresql/postgresql.conf"
 
+  certificate-stream:
+    container_name: certificate-stream
+    build:
+      context: "services/certificate-stream"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
+      POSTGRES_DB: "${POSTGRES_CERTSTREAM_DB}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - "${CONFIG_PATH}/:/config/:ro"
 networks:
   default:
     external: true
