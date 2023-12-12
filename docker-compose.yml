@@ -12,6 +12,23 @@ services:
       - "${POSTGRES_PATH}/postgres/init-scripts:/docker-entrypoint-initdb.d"
       - "${POSTGRES_PATH}/postgres/conf/postgresql.conf:/etc/postgresql/postgresql.conf"
 
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    restart: always
+    platform: linux/x86_64
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+#      RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER}"
+#      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS}"
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+#    volumes:
+#      - "${RABBITMQ_PATH}/rabbitmq/data:/var/lib/rabbitmq"
+#      - "${RABBITMQ_PATH}/rabbitmq/conf/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf"
+#      - "${RABBITMQ_PATH}/rabbitmq/conf/enabled_plugins:/etc/rabbitmq/enabled_plugins"
+
   certificate-stream:
     container_name: certificate-stream
     build:
@@ -26,6 +43,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - "${CONFIG_PATH}/:/config/:ro"
+
 networks:
   default:
     external: true
