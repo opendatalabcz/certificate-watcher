@@ -43,6 +43,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - "${CONFIG_PATH}/:/config/:ro"
+      - "${SERVICES_PATH}/commons/:/app/src/commons/:ro"
 
   certificate-processor:
     container_name: certificate-processor
