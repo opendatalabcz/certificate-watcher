@@ -3,6 +3,7 @@ import optparse
 import os
 import sys
 
+import certstream
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
 
@@ -52,9 +53,6 @@ database_query = """
 
 
 def print_callback(message, context):  # noqa: ARG001
-    # print(f"Message -> {message}")
-    # print(f"Context -> {context}")
-
     if message["message_type"] == "heartbeat":
         return
 
@@ -63,28 +61,12 @@ def print_callback(message, context):  # noqa: ARG001
         # postgres_storage.execute(query=database_query, params=(json.dumps(all_domains),))
         print(f"Sent to stream -> {', '.join(all_domains)}")
 
-    # for domain in all_domains:
-    #     # print(f"New domain -> {domain}")
-    #     if domain.endswith(".cz"):
-    #         print_message = True
-
-    # print(f"New certificate -> {', '.join(all_domains)}")
-
-
-# connection = pika.BlockingConnection(pika.ConnectionParameters("rabbitmq"))
-# channel = connection.channel()
-# channel.queue_declare(queue='hello')
+        for domain in all_domains:
+            rabbitmq_handler.send(domain)
 
 
 def main():
-    # certstream.listen_for_events(print_callback, url=CERTSTREAM_URL)
-    rabbitmq_handler.send("test")
-    # channel.basic_publish(exchange='',
-    #                       routing_key='hello',
-    #                       body='Hello World!')
-    # print(" [x] Sent 'Hello World!'")
-
-    # connection.close()
+    certstream.listen_for_events(print_callback, url=CERTSTREAM_URL)
 
 
 if __name__ == "__main__":
