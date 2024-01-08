@@ -36,7 +36,7 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
             )
         )
         self.channel = self.connection.channel()
-        self.channel.queue_declare(queue=self.queue_name, durable=True)
+        self.channel.queue_declare(queue=self.queue_name)
         self.is_active = True
 
     def _reconnect(self):
