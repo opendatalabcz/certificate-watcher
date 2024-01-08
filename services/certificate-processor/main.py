@@ -1,5 +1,6 @@
 import configparser
 import optparse
+import os
 import sys
 
 from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
@@ -45,16 +46,23 @@ except Exception as e:
 rabbitmq_handler = RabbitMQStreamHandler(connection_parameters=rabbitmq_connection_info, queue_name="certstream-test")
 
 
-def main():
-    data = rabbitmq_handler.receive()
-    print(data)
-    # channel.basic_publish(exchange='',
-    #                       routing_key='hello',
-    #                       body='Hello World!')
-    # print(" [x] Sent 'Hello World!'")
+def callback(ch, method, properties, body):  # noqa: ARG001
+    print(" [x] Received %r" % body)
 
-    # connection.close()
+
+def main():
+    # data = rabbitmq_handler.receive_single_frame()
+    # print(data)
+    print(" [*] Waiting for messages. To exit press CTRL+C")
+    rabbitmq_handler.receive_multiple_frames(callback)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Interrupted")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)

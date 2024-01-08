@@ -21,11 +21,15 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
     def send(self, data):
         self.channel.basic_publish(exchange="", routing_key=self.queue_name, body=data)
 
-    def receive(self):
+    def receive_single_frame(self):
         method_frame, header_frame, body = self.channel.basic_get(queue=self.queue_name, auto_ack=True)
         if method_frame:
             return body.decode("utf-8")
         return None
+
+    def receive_multiple_frames(self, callback):
+        self.channel.basic_consume(queue=self.queue_name, on_message_callback=callback, auto_ack=True)
+        self.channel.start_consuming()
 
     def _connect(self):
         credentials = pika.PlainCredentials(self.connection_parameters["username"], self.connection_parameters["password"])
