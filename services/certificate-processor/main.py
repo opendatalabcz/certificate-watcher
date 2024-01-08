@@ -2,7 +2,7 @@ import configparser
 import optparse
 import sys
 
-from src.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
+from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
 
 parser = optparse.OptionParser(description="Certificate watcher service to process certificates")
 parser.add_option("-c", "--config-file", metavar="FILENAME", type=str, help="Config file location")
