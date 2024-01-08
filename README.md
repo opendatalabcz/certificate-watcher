@@ -24,3 +24,17 @@ TODO:
 ### postgres
 
 Postgres database for storing the certificate stream. Currently running allongside others in docker-compose.
+
+## Git workflow
+
+### Commiting
+
+Please use following commit message format:
+
+`[<service>] <message>`
+
+e.g.:
+
+`[certificate-stream] Add readme`
+
+use `[project]` if the commit is not related to a specific service.
