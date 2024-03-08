@@ -12,7 +12,8 @@ This project is a SSL certificate scanning and phishing prevention tool.
 ### Running the project
 
 1. Clone the repository
-2. Add .env file to the root of the project according to the .env-example
+2. Add .env file to the root of the project according to the .env-example and fill it with your own values
+   - do NOT use example .env file in production
 3. Run `make build` in the root of the project
    - alternatively you can run `make build-dev` to build each service container separately with file structure for development purposes
 4. Run `make run` script in the root of the project
