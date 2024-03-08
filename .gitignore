@@ -166,4 +166,7 @@ services/*/data/*
 # commons links
 /services/*/src/commons
 
+# test data
 /services/test/
+
+.DS_Store
