@@ -22,6 +22,8 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
         self.channel.basic_publish(exchange="", routing_key=self.queue_name, body=data)
 
     def receive_single_frame(self):
+        if not self.is_active or self.connection.is_closed or self.channel.is_closed:
+            self._reconnect()
         method_frame, header_frame, body = self.channel.basic_get(queue=self.queue_name, auto_ack=True)
         if method_frame:
             return body.decode("utf-8")
