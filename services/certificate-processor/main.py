@@ -2,6 +2,7 @@ import configparser
 import optparse
 import os
 import sys
+import time
 
 from requests.exceptions import ConnectionError, RequestException, SSLError, Timeout
 from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
@@ -59,34 +60,37 @@ image_domain_handler = ImageDomainHandler(webscraper=webscraper, config=domain_h
 
 
 def main():
-    # data = rabbitmq_handler.receive_single_frame()
-    # print(data)
     print(" [*] Waiting for messages. To exit press CTRL+C")
     while True:
         # rabbitmq_handler.receive_multiple_frames(callback)
         domain = rabbitmq_handler.receive_single_frame()
+        if not domain:
+            time.sleep(1)
+            continue
         print(domain)
 
         str_result = string_domain_handler.check([domain])
-        try:
-            img_result = image_domain_handler.check([domain])
-            # img_result = run_with_timeout(task_function, 5, domain)
-        except TimerExceptionError as e:
-            print("TIMEOUT: ", e)
-            img_result = None
-        except (ConnectionError, SSLError, Timeout, RequestException) as e:
-            print("BIG ERROR: ", e)
-            img_result = None
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            img_result = None
+        if str_result:
+            print("Suspicious domain found, scraping started:")
+            try:
+                img_result = image_domain_handler.check([domain])
+                # img_result = run_with_timeout(task_function, 5, domain)
+            except TimerExceptionError as e:
+                print("TIMEOUT: ", e)
+                img_result = None
+            except (ConnectionError, SSLError, Timeout, RequestException) as e:
+                print("BIG ERROR: ", e)
+                img_result = None
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+                img_result = None
 
         if str_result:
             print(str_result)
-        if img_result:
-            print(img_result)
+            if img_result:
+                print(img_result)
         else:
-            print("NO RESULT")
+            print("NO MATCH")
             # print(f"Domain {domain} is not phishing")
 
 
