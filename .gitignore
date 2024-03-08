@@ -165,3 +165,5 @@ services/*/data/*
 
 # commons links
 /services/*/src/commons
+
+/services/test/
