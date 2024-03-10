@@ -51,7 +51,8 @@ rabbitmq_handler = RabbitMQStreamHandler(connection_parameters=rabbitmq_connecti
 webscraper = BS4WebScraper(parser="lxml", timeout=5)
 
 # config for domain handlers, should be loaded from config file
-domain_handler_config = {"string_domains": ["csob", "moneta", "reiffeisen", "unicredit", "komercni-banka"]}
+# simple substrings to look for in domain names
+domain_handler_config = {"string_domains": ["csob", "moneta", "reiffeisen", "unicredit", "komercni-banka", "slsp", "kr-"]}
 string_domain_handler = StringDomainHandler(config=domain_handler_config)
 image_domain_handler = ImageDomainHandler(webscraper=webscraper, config=domain_handler_config)
 
@@ -61,17 +62,22 @@ image_domain_handler = ImageDomainHandler(webscraper=webscraper, config=domain_h
 
 def main():
     print(" [*] Waiting for messages. To exit press CTRL+C")
+    print(" [*] Processing messages from queue")
+    counter = 0
     while True:
         # rabbitmq_handler.receive_multiple_frames(callback)
+
         domain = rabbitmq_handler.receive_single_frame()
         if not domain:
-            time.sleep(1)
+            time.sleep(0.5)
             continue
-        print(domain)
+        # print(domain)
 
+        counter += 1
+        # print("counter: ", counter)
         str_result = string_domain_handler.check([domain])
         if str_result:
-            print("Suspicious domain found, scraping started:")
+            print(f"Suspicious domain {domain} found, scraping started:")
             try:
                 img_result = image_domain_handler.check([domain])
                 # img_result = run_with_timeout(task_function, 5, domain)
@@ -89,9 +95,11 @@ def main():
             print(str_result)
             if img_result:
                 print(img_result)
-        else:
-            print("NO MATCH")
-            # print(f"Domain {domain} is not phishing")
+            else:
+                print("No images found")
+
+        if counter % 50 == 0:
+            print(f"Processed {counter} domains")
 
 
 if __name__ == "__main__":
