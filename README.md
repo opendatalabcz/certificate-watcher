@@ -17,9 +17,10 @@ This project is a SSL certificate scanning and phishing prevention tool.
    - most importantly fill the `PROJECT_PATH` variable with the absolute path to the root of the project
    - you can and currently should use all other example values for development or test purposes
    - do NOT use example .env file in production
-4. Run `make build` in the root of the project
+3. Run `make build` in the root of the project
    - alternatively you can run `make build-dev` to build each service container separately with file structure for development purposes
-5. Run `make run` script in the root of the project
+4. Run `make run` script in the root of the project
+   - this will run detached containers for each service
    - alternatively you can run `docker-compose up` or `make run-compose` in the root of the project, however it may not run properly due to boot time dependency
 
 ## Current schema:
