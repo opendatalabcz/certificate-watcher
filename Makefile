@@ -7,7 +7,7 @@ build-dev:
 
 build:
 	@echo "Building services..."
-	@docker-compose build
+	@docker compose build
 
 run:
 	@echo "Running script..."
@@ -15,6 +15,6 @@ run:
 
 run-compose:
 	@echo "Running Docker Compose..."
-	@docker-compose up
+	@docker compose up
 
 all: build run
