@@ -8,6 +8,7 @@ This project is a SSL certificate scanning and phishing prevention tool.
 
 - Docker
 - Docker-compose
+- make
 
 ### Running the project
 
@@ -25,6 +26,8 @@ This project is a SSL certificate scanning and phishing prevention tool.
 
 Service for inital watching of the certificate stream and its first processing. Currently in test state.
 
+- [ ] Add loggers to certificate-stream
+
 ### certificate-processor
 
 Service for processing the certificate stream. Currently in planning state.
@@ -32,6 +35,7 @@ Service for processing the certificate stream. Currently in planning state.
 TODO:
 - [ ] Add configuration to certificate-processor
 - [ ] Save suspicioous domains to database
+- [ ] Add loggers to certificate-processor
 
 ### rabbitmq
 
