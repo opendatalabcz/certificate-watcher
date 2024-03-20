@@ -1,6 +1,7 @@
 #!/bin/bash
 
 docker compose up -d rabbitmq
+docker compose up -d postgres
 
 # Wait for RabbitMQ to boot up
 sleep 15
