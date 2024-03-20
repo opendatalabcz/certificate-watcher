@@ -8,8 +8,8 @@ from requests.exceptions import ConnectionError, RequestException, SSLError, Tim
 from src.commons.db_storage.models import FlaggedDomain
 from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
+from src.commons.logging.app_logger import AppLogger
 from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
-from src.commons.timer.func_timer import TimerExceptionError
 from src.domain_handler.image_domain_handler import ImageDomainHandler
 from src.domain_handler.string_domain_handler import StringDomainHandler
 from src.scraper.web_scraper import BS4WebScraper
@@ -19,8 +19,11 @@ parser.add_option("-c", "--config-file", metavar="FILENAME", type=str, help="Con
 parser.add_option("-e", "--environment", metavar="NAME", type=str, help="Name of the environment (for loading config)")
 (args, _) = parser.parse_args()
 
+AppLogger.setup_logging("certificate-processor")
+logger = AppLogger.get_logger()
+
 if not args.config_file:
-    print("Config file must be provided")
+    logger.error("Config file must be provided")
     sys.exit(1)
 
 database_connection_info = PostgreSQLConnectionInfo(
@@ -40,12 +43,12 @@ database_connection_info = PostgreSQLConnectionInfo(
 rabbitmq_connection_info = {"hostname": "rabbitmq", "port": 5672, "username": "guest", "password": "guest", "virtualhost": "/"}
 
 try:
-    print("Starting certificate-processor")
+    logger.info("Starting certificate-processor")
 
     config = configparser.ConfigParser()
     config.read(args.config_file)
 except Exception as e:
-    print(f"Fatal error during initialization: {e}")
+    logger.error(f"Fatal error during initialization: {e}")
     sys.exit(1)
 
 postgres_storage = SqlAlchemyStorage(database_connection_info=database_connection_info)
@@ -61,8 +64,8 @@ image_domain_handler = ImageDomainHandler(webscraper=webscraper, config=domain_h
 
 
 def main():
-    print(" [*] Waiting for messages. To exit press CTRL+C")
-    print(" [*] Processing messages from queue")
+    logger.info(" [*] Waiting for messages. To exit press CTRL+C")
+    logger.info(" [*] Processing messages from queue")
     counter = 0
     while True:
         # rabbitmq_handler.receive_multiple_frames(callback)
@@ -71,47 +74,41 @@ def main():
         if not domain:
             time.sleep(0.5)
             continue
-        # print(domain)
 
         counter += 1
-        # print("counter: ", counter)
         str_result = string_domain_handler.check([domain])
         if str_result:
-            print(f"Suspicious domain {domain} found, scraping started:")
+            logger.info(f"Suspicious domain {domain} found, scraping started:")
             record = FlaggedDomain(domain=domain, flagged_domain_base=str_result, algorithm_name="default")
             try:
                 img_result = image_domain_handler.check([domain])
                 record.scraped_images = img_result
                 record.scraped = True
-                # img_result = run_with_timeout(task_function, 5, domain)
-            except TimerExceptionError as e:
-                print("TIMEOUT: ", e)
-                img_result = None
             except (ConnectionError, SSLError, Timeout, RequestException) as e:
-                print("BIG ERROR: ", e)
+                logger.error(f"Connection error: {e}")
                 img_result = None
                 record.scraped = False
             except Exception as e:
-                print(f"Unexpected error: {e}")
+                logger.error(f"Unexpected error: {e}")
                 img_result = None
                 record.scraped = False
 
-            print(str_result)
-            if img_result:
-                print(img_result)
+            logger.info(f"Domain {domain} processed, result: {str_result}")
+            if not img_result:
+                logger.info("No images found")
             else:
-                print("No images found")
+                logger.debug(f"Images found: {img_result}")
             postgres_storage.add([record])
 
         if counter % 50 == 0:
-            print(f"Processed {counter} domains")
+            logger.info(f"Processed {counter} domains")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("Interrupted")
+        logger.info("Interrupted")
         try:
             sys.exit(0)
         except SystemExit:
