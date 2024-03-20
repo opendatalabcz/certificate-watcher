@@ -5,6 +5,9 @@ import sys
 import time
 
 from requests.exceptions import ConnectionError, RequestException, SSLError, Timeout
+from src.commons.db_storage.models import FlaggedDomain
+from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
+from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
 from src.commons.timer.func_timer import TimerExceptionError
 from src.domain_handler.image_domain_handler import ImageDomainHandler
@@ -20,13 +23,13 @@ if not args.config_file:
     print("Config file must be provided")
     sys.exit(1)
 
-# database_connection_info = PostgreSQLConnectionInfo(
-#     hostname=os.environ.get("POSTGRES_HOST"),
-#     port=os.environ.get("POSTGRES_PORT"),
-#     database=os.environ.get("POSTGRES_DB"),
-#     username=os.environ.get("POSTGRES_USER"),
-#     password=os.environ.get("POSTGRES_PASSWORD"),
-# )
+database_connection_info = PostgreSQLConnectionInfo(
+    hostname=os.environ.get("POSTGRES_HOST"),
+    port=int(os.environ.get("POSTGRES_PORT", "5432")),
+    database=os.environ.get("POSTGRES_DB"),
+    username=os.environ.get("POSTGRES_USER"),
+    password=os.environ.get("POSTGRES_PASSWORD"),
+)
 # rabbitmq_connection_info = RabbitMQConnectionInfo(
 #     hostname=os.environ.get("RABBITMQ_HOST"),
 #     port=os.environ.get("RABBITMQ_PORT"),
@@ -45,7 +48,7 @@ except Exception as e:
     print(f"Fatal error during initialization: {e}")
     sys.exit(1)
 
-# postgres_storage = PostgresStorage(database_connection_info=database_connection_info)
+postgres_storage = SqlAlchemyStorage(database_connection_info=database_connection_info)
 rabbitmq_handler = RabbitMQStreamHandler(connection_parameters=rabbitmq_connection_info, queue_name="certstream-test")
 # parser should be loaded from config file
 webscraper = BS4WebScraper(parser="lxml", timeout=5)
@@ -55,9 +58,6 @@ webscraper = BS4WebScraper(parser="lxml", timeout=5)
 domain_handler_config = {"string_domains": ["csob", "moneta", "reiffeisen", "unicredit", "komercni-banka", "slsp", "kr-"]}
 string_domain_handler = StringDomainHandler(config=domain_handler_config)
 image_domain_handler = ImageDomainHandler(webscraper=webscraper, config=domain_handler_config)
-
-# def task_function(domain):
-#     return image_domain_handler.check([domain])
 
 
 def main():
@@ -78,8 +78,11 @@ def main():
         str_result = string_domain_handler.check([domain])
         if str_result:
             print(f"Suspicious domain {domain} found, scraping started:")
+            record = FlaggedDomain(domain=domain, flagged_domain_base=str_result, algorithm_name="default")
             try:
                 img_result = image_domain_handler.check([domain])
+                record.scraped_images = img_result
+                record.scraped = True
                 # img_result = run_with_timeout(task_function, 5, domain)
             except TimerExceptionError as e:
                 print("TIMEOUT: ", e)
@@ -87,16 +90,18 @@ def main():
             except (ConnectionError, SSLError, Timeout, RequestException) as e:
                 print("BIG ERROR: ", e)
                 img_result = None
+                record.scraped = False
             except Exception as e:
                 print(f"Unexpected error: {e}")
                 img_result = None
+                record.scraped = False
 
-        if str_result:
             print(str_result)
             if img_result:
                 print(img_result)
             else:
                 print("No images found")
+            postgres_storage.add([record])
 
         if counter % 50 == 0:
             print(f"Processed {counter} domains")
