@@ -51,4 +51,4 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
 
     def __del__(self):
         self._close_connections()
-        print("Closed connections for RabbitMQStreamHandler")
+        self.logger.info("Closed connections for RabbitMQStreamHandler")

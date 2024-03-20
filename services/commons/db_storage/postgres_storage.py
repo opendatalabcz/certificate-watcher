@@ -22,12 +22,12 @@ class PostgresStorage(AbstractStorage):
 
     def __create_connection(self, database_connection_info):
         connection = psycopg2.connect(**database_connection_info.get_connection_args())
-        print(f"Created connection for db: {self.database_connection_info.database} on {self.database_connection_info.hostname}")
+        self.logger.info(f"Created connection for db: {database_connection_info.database} on {database_connection_info.hostname}")
         return connection
 
     def __close_connection(self):
         self.connection.close()
-        print(f"Closed connection for db: {self.database_connection_info.database} on {self.database_connection_info.hostname}")
+        self.logger.info(f"Closed connection for db: {self.database_connection_info.database} on {self.database_connection_info.hostname}")
 
     def __del__(self):
         self.__close_connection()
@@ -44,12 +44,11 @@ class PostgresStorage(AbstractStorage):
             if self.autocommit is True:
                 self.commit()
         except (psycopg2.OperationalError, psycopg2.InterfaceError, psycopg2.InternalError) as e:
-            print(f"Lost PostgreSQL connection, sick of it => Goodbye! {e}", flush=True)
+            self.logger.error(f"Lost PostgreSQL connection, sick of it => Goodbye! {e}")
             os._exit(3)
         except psycopg2.Error as e:
             self.rollback()
-
-            print(f"Postgres error: {e}, query:{query}")
+            self.logger.error(f"Postgres error: {e}, query:{query}")
             raise Exception(f"Postgres error: {e}") from e
 
 
@@ -81,4 +80,4 @@ class SqlAlchemyStorage(AbstractStorage):
             session.add_all(items)
             session.commit()
             # session.flush()
-            print(f"Added {len(items)} items to the database")
+            self.logger.info(f"Added {len(items)} items to the database")
