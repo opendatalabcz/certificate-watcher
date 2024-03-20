@@ -1,10 +1,9 @@
 import configparser
 import optparse
-import os
 import sys
 
 import certstream
-from src.commons.db_storage.utils import PostgreSQLConnectionInfo
+from src.commons.logging.app_logger import AppLogger
 from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
 
 parser = optparse.OptionParser(description="Certificate watcher service")
@@ -12,17 +11,13 @@ parser.add_option("-c", "--config-file", metavar="FILENAME", type=str, help="Con
 parser.add_option("-e", "--environment", metavar="NAME", type=str, help="Name of the environment (for loading config)")
 (args, _) = parser.parse_args()
 
+AppLogger.setup_logging("certificate-stream")
+logger = AppLogger.get_logger()
+
 if not args.config_file:
-    print("Config file must be provided")
+    logger.error("Config file must be provided")
     sys.exit(1)
 
-database_connection_info = PostgreSQLConnectionInfo(
-    hostname=os.environ.get("POSTGRES_HOST"),
-    port=os.environ.get("POSTGRES_PORT"),
-    database=os.environ.get("POSTGRES_DB"),
-    username=os.environ.get("POSTGRES_USER"),
-    password=os.environ.get("POSTGRES_PASSWORD"),
-)
 # rabbitmq_connection_info = RabbitMQConnectionInfo(
 #     hostname=os.environ.get("RABBITMQ_HOST"),
 #     port=os.environ.get("RABBITMQ_PORT"),
@@ -33,7 +28,7 @@ database_connection_info = PostgreSQLConnectionInfo(
 rabbitmq_connection_info = {"hostname": "rabbitmq", "port": 5672, "username": "guest", "password": "guest", "virtualhost": "/"}
 
 try:
-    print("Starting certificate-watcher")
+    logger.info("Starting certificate-watcher")
 
     config = configparser.ConfigParser()
     config.read(args.config_file)
@@ -41,7 +36,7 @@ try:
     CERTSTREAM_URL = config.get("certificate-stream", "certstream_url")
 
 except Exception as e:
-    print(f"Fatal error during initialization: {e}")
+    logger.error(f"Fatal error during initialization: {e}")
     sys.exit(1)
 
 # postgres_storage = PostgresStorage(database_connection_info=database_connection_info)
@@ -58,11 +53,11 @@ def print_callback(message, context):  # noqa: ARG001
 
     if message["message_type"] == "certificate_update":
         all_domains = message["data"]["leaf_cert"]["all_domains"]
-        # postgres_storage.execute(query=database_query, params=(json.dumps(all_domains),))
-        print(f"Sent to stream -> {', '.join(all_domains)}")
 
         for domain in all_domains:
             rabbitmq_handler.send(domain)
+
+        logger.info(f"Sent to stream -> {', '.join(all_domains)}")
 
 
 def main():
