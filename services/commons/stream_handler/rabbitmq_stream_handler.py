@@ -14,8 +14,10 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
         self._connect()
 
     def _close_connections(self):
-        self.channel.close()
-        self.connection.close()
+        if self.channel:
+            self.channel.close()
+        if self.connection:
+            self.connection.close()
         self.is_active = False
 
     def send(self, data):
