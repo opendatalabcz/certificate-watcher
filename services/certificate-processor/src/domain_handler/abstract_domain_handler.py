@@ -1,12 +1,12 @@
 from typing import Union
 
+from ..commons.logging.app_logger import AppLogger
+
 
 class AbstractDomainHandler:
     def __init__(self, config: dict = {}):  # noqa: B006
-        # contains all the configuration for the domain handler
-        # - can be used to set string domains
-        # - can be used to set images to look for
+        self.logger = AppLogger.get_logger(self.__class__.__name__)
         self.config = config
 
-    def check(self, domain: list) -> Union[None, list]:
+    def check(self, domain: str) -> Union[None, list]:
         raise NotImplementedError

@@ -35,10 +35,15 @@ Service for inital watching of the certificate stream and its first processing. 
 
 Service for processing the certificate stream. Currently in planning state.
 
+Supports multiple string matching algorithms for detecting suspicious domains.
+Currently supports:
+- simple string matching (`simple`)
+  - looks if checked domain contains any of predefined strings
+
 TODO:
 - [ ] Add configuration to certificate-processor
-- [ ] Save suspicioous domains to database
-- [ ] Add loggers to certificate-processor
+- [x] Save suspicioous domains to database - v1
+- [x] Add loggers to certificate-processor
 
 ### rabbitmq
 

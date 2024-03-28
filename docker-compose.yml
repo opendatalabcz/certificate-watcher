@@ -61,6 +61,7 @@ services:
 #      RABBITMQ_PORT: "${RABBITMQ_PORT}"
 #      RABBITMQ_USER: "${RABBITMQ_DEFAULT_USER}"
 #      RABBITMQ_PASS: "${RABBITMQ_DEFAULT_PASS}"
+      ALGORITHM: "simple"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
