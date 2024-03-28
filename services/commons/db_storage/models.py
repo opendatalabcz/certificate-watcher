@@ -22,7 +22,7 @@ class FlaggedDomain(Base):
 
     def __repr__(self) -> str:
         return (
-            f"FlaggedDomain(id={self.id!r}, domain={self.domain!r}, "
+            f"FlaggedDomain(id={self.id!r}, domain={self.domain!r}, flagged_domain_base={self.flagged_domain_base!r},"
             f"algorithm_name={self.algorithm_name!r}, scraped={self.scraped!r}, "
             f"scraped_images={self.scraped_images!r}, last_scraped={self.last_scraped!r})"
         )
