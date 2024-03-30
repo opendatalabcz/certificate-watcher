@@ -1,12 +1,13 @@
 from .abstract_phishing_domain_checker import AbstractPhishingDomainChecker
+from .levenshtein_phishing_domain_checker import LevenshteinPhishingDomainChecker
 from .simple_phishing_domain_checker import SimplePhishingDomainChecker
 
 
 def phishing_domain_checker_factory(algorithm: str, settings: dict) -> AbstractPhishingDomainChecker:
     if algorithm == "simple":
         return SimplePhishingDomainChecker(settings=settings)
-    elif algorithm == "hamming_weight":  # noqa: RET505
-        raise NotImplementedError("Hamming weight algorithm not implemented yet")
+    elif algorithm == "levenshtein":  # noqa: RET505
+        return LevenshteinPhishingDomainChecker(settings=settings)
     elif algorithm == "scrambling":
         raise NotImplementedError("Scrambling algorithm not implemented yet")
     elif algorithm == "fuzzy_hashing":
