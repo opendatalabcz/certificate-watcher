@@ -10,6 +10,7 @@ from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.logging.app_logger import AppLogger
 from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
+from src.commons.stream_handler.utils import RabbitMQConnectionInfo
 from src.domain_handler.image_domain_handler import ImageDomainHandler
 from src.domain_handler.string_domain_handler import StringDomainHandler
 from src.phishing_domain_checker.phishing_domain_checker_factory import phishing_domain_checker_factory
@@ -27,21 +28,6 @@ if not args.config_file:
     logger.error("Config file must be provided")
     sys.exit(1)
 
-database_connection_info = PostgreSQLConnectionInfo(
-    hostname=os.environ.get("POSTGRES_HOST"),
-    port=int(os.environ.get("POSTGRES_PORT", "5432")),
-    database=os.environ.get("POSTGRES_DB"),
-    username=os.environ.get("POSTGRES_USER"),
-    password=os.environ.get("POSTGRES_PASSWORD"),
-)
-# rabbitmq_connection_info = RabbitMQConnectionInfo(
-#     hostname=os.environ.get("RABBITMQ_HOST"),
-#     port=os.environ.get("RABBITMQ_PORT"),
-#     username=os.environ.get("RABBITMQ_USER"),
-#     password=os.environ.get("RABBITMQ_PASSWORD"),
-#     virtualhost=os.environ.get("RABBITMQ_VHOST"),
-# )
-rabbitmq_connection_info = {"hostname": "rabbitmq", "port": 5672, "username": "guest", "password": "guest", "virtualhost": "/"}
 
 phishing_catcher_settings_db = {
     "ceskoslovenska-obchodna-banka": {
@@ -81,20 +67,51 @@ try:
 
     config = configparser.ConfigParser()
     config.read(args.config_file)
+
+    RABBITMQ_CONNECTION_INFO = RabbitMQConnectionInfo(
+        hostname=config.get("rabbitmq", "hostname"),
+        port=config.getint("rabbitmq", "port"),
+        virtualhost=config.get("rabbitmq", "virtualhost"),
+        exchange=config.get("rabbitmq", "exchange"),
+        connect_timeout=config.getint("rabbitmq", "connect_timeout"),
+    )
+
+    WEB_SCRAPING = dict(config.items("web-scraping"))
+
+    logger.info(f"Loaded config from {args.config_file}")
+
+    RABBITMQ_CONNECTION_INFO.username = os.environ.get("RABBITMQ_DEFAULT_USER")
+    RABBITMQ_CONNECTION_INFO.password = os.environ.get("RABBITMQ_DEFAULT_PASS")
+    RABBITMQ_CONNECTION_INFO.queue = os.environ.get("RABBITMQ_QUEUE", None)
+
+    DATABASE_CONNECTION_INFO = PostgreSQLConnectionInfo(
+        hostname=config.get("postgres", "hostname"),
+        port=config.getint("postgres", "port"),
+        database=config.get("postgres", "database"),
+        username=os.environ.get("POSTGRES_USER"),
+        password=os.environ.get("POSTGRES_PASSWORD"),
+    )
+
+    logger.info(f"CONNECTION INFO PG: {DATABASE_CONNECTION_INFO}")
+    logger.info(f"CONNECTION INFO RMQ: {RABBITMQ_CONNECTION_INFO}")
+    CHECKER_ALGORITHM = os.environ.get("ALGORITHM", "simple")
+
+    logger.info("Loaded environment variables")
+    logger.info("Config loaded successfully")
+
 except Exception as e:
     logger.error(f"Fatal error during initialization: {e}")
     sys.exit(1)
 
-postgres_storage = SqlAlchemyStorage(database_connection_info=database_connection_info)
-rabbitmq_handler = RabbitMQStreamHandler(connection_parameters=rabbitmq_connection_info, queue_name="certstream-test")
+postgres_storage = SqlAlchemyStorage(database_connection_info=DATABASE_CONNECTION_INFO)
+rabbitmq_handler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_CONNECTION_INFO)
+rabbitmq_handler._setup_consumer()
 # parser should be loaded from config file
-webscraper = BS4WebScraper(parser="lxml", timeout=5)
+webscraper = BS4WebScraper(parser=WEB_SCRAPING.get("parser"), timeout=int(WEB_SCRAPING.get("timeout")))
 
 # maybe would be better as config file or program parameter
-checker_algorithm = os.environ.get("ALGORITHM", "simple")
-string_checker = phishing_domain_checker_factory(checker_algorithm, phishing_catcher_settings_db)
-# config for domain handlers, should be loaded from config file
-# simple substrings to look for in domain names
+string_checker = phishing_domain_checker_factory(CHECKER_ALGORITHM, phishing_catcher_settings_db)
+
 domain_handler_config = {}
 string_domain_handler = StringDomainHandler(config=domain_handler_config, checker=string_checker)
 image_domain_handler = ImageDomainHandler(webscraper=webscraper, config=domain_handler_config)
@@ -114,6 +131,8 @@ def main():
             domain = test_domains[counter % len(test_domains)]
         else:
             domain = rabbitmq_handler.receive_single_frame()
+            # todo: delete, just for testing queue processing
+            print(f"Processing domain: {domain}")
         if not domain:
             time.sleep(0.5)
             continue
@@ -122,7 +141,7 @@ def main():
         str_result = string_domain_handler.check(domain)
         if str_result:
             logger.info(f"Suspicious domain {domain} found, scraping started:")
-            record = FlaggedDomain(domain=domain, flagged_domain_base=str_result, algorithm_name=checker_algorithm)
+            record = FlaggedDomain(domain=domain, flagged_domain_base=str_result, algorithm_name=CHECKER_ALGORITHM)
             try:
                 img_result = image_domain_handler.check([domain])
                 record.scraped_images = img_result

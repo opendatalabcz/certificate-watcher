@@ -1,17 +1,17 @@
 import pika
 
 from .abstract_stream_handler import AbstractStreamHandler
+from .utils import RabbitMQConnectionInfo
 
 
 class RabbitMQStreamHandler(AbstractStreamHandler):
-    def __init__(self, connection_parameters, queue_name):
+    def __init__(self, connection_parameters: RabbitMQConnectionInfo):
         super().__init__()
         self.connection_parameters = connection_parameters
-        self.queue_name = queue_name
+        self.exchange_name = self.connection_parameters.exchange
+        self.queue_name = None
         self.connection = None
         self.channel = None
-        self.is_active = False
-        self._connect()
 
     def _close_connections(self):
         if self.channel:
@@ -21,7 +21,7 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
         self.is_active = False
 
     def send(self, data):
-        self.channel.basic_publish(exchange="", routing_key=self.queue_name, body=data)
+        self.channel.basic_publish(exchange=self.exchange_name, routing_key="", body=data)
 
     def receive_single_frame(self):
         if not self.is_active or self.connection.is_closed or self.channel.is_closed:
@@ -36,15 +36,34 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
         self.channel.start_consuming()
 
     def _connect(self):
-        credentials = pika.PlainCredentials(self.connection_parameters["username"], self.connection_parameters["password"])
+        credentials = pika.PlainCredentials(self.connection_parameters.username, self.connection_parameters.password)
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(
-                host=self.connection_parameters["hostname"],
+                host=self.connection_parameters.hostname,
                 credentials=credentials,
             )
         )
         self.channel = self.connection.channel()
-        self.channel.queue_declare(queue=self.queue_name)
+        self.channel.exchange_declare(exchange=self.exchange_name, exchange_type="fanout")
+
+    def _setup_producer(self):
+        self._connect()
+        self.is_active = True
+
+    def _setup_consumer(self):
+        self._connect()
+
+        queue_name = self.connection_parameters.queue
+        try:
+            self.channel.queue_declare(queue=queue_name, passive=True)
+            self.logger.info(f"Queue {queue_name} exists")
+        except pika.exceptions.ChannelClosedByBroker:
+            self.logger.info(f"Queue {queue_name} does not exist, creating it")
+            self._connect()
+            self.channel.queue_declare(queue=queue_name, exclusive=False)
+        self.queue_name = queue_name
+        self.channel.queue_bind(exchange=self.exchange_name, queue=self.queue_name)
+
         self.is_active = True
 
     def _reconnect(self):

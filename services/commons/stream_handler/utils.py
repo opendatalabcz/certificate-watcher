@@ -3,11 +3,13 @@ from dataclasses import dataclass
 
 @dataclass
 class RabbitMQConnectionInfo:
-    hostname: str
-    port: int
-    username: str
-    password: str
-    virtualhost: str
+    hostname: str = None
+    port: int = None
+    username: str = None
+    password: str = None
+    virtualhost: str = None
+    exchange: str = None
+    queue: str = ""
     connect_timeout: int = 4
 
     def get_connection_args(self):
@@ -17,5 +19,7 @@ class RabbitMQConnectionInfo:
             "username": self.username,
             "password": self.password,
             "virtualhost": self.virtualhost,
+            "exchange": self.exchange,
+            "queue": self.queue,
             "connect_timeout": self.connect_timeout,
         }

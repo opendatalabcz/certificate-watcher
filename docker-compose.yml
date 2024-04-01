@@ -1,3 +1,37 @@
+x-defaults:
+  rabbitmq-env-base: &rabbitmq-env-base
+    RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER}"
+    RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS}"
+#    RABBITMQ_DEFAULT_USER: guest
+#    RABBITMQ_DEFAULT_PASS: guest
+
+  rabbitmq-env-default: &rabbitmq-env-default
+    <<: *rabbitmq-env-base
+
+  postgres-env-base: &postgres-env-base
+    POSTGRES_USER: "${POSTGRES_USER}"
+    POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+
+  postgres-env-default: &postgres-env-default
+    <<: *postgres-env-base
+
+  certificate-processor-default: &certificate-processor-default
+    build:
+      context: "services/certificate-processor"
+    environment:
+      <<: [*postgres-env-default, *rabbitmq-env-default]
+      RABBITMQ_QUEUE: "cert-processor-default"
+      ALGORITHM: "simple"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - "${PROJECT_PATH}/config/:/config/:ro"
+      - "${PROJECT_PATH}/services/commons/:/app/src/commons/:ro"
+    depends_on:
+      - rabbitmq
+      - certificate-stream
+      - postgres
+
 services:
   postgres:
     image: postgres:16.1
@@ -5,8 +39,7 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: "${POSTGRES_USER}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      <<: *postgres-env-base
     volumes:
       - "${PROJECT_PATH}/services/postgres/data:/var/lib/postgresql/data"
       - "${PROJECT_PATH}/services/postgres/init-scripts:/docker-entrypoint-initdb.d"
@@ -20,10 +53,7 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-#      RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER}"
-#      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS}"
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      <<: *rabbitmq-env-base
 #    volumes:
 #      - "${RABBITMQ_PATH}/rabbitmq/data:/var/lib/rabbitmq"
 #      - "${RABBITMQ_PATH}/rabbitmq/conf/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf"
@@ -34,11 +64,7 @@ services:
     build:
       context: "services/certificate-stream"
     environment:
-      POSTGRES_USER: "${POSTGRES_USER}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
-      POSTGRES_HOST: "${POSTGRES_HOST}"
-      POSTGRES_PORT: "${POSTGRES_PORT}"
-      POSTGRES_DB: "${POSTGRES_CERTSTREAM_DB}"
+      <<: *rabbitmq-env-default
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -47,30 +73,30 @@ services:
     depends_on:
       - rabbitmq
 
-  certificate-processor:
-    container_name: certificate-processor
-    build:
-      context: "services/certificate-processor"
+  certificate-processor-lev-1:
+    <<: *certificate-processor-default
+    container_name: certificate-processor-lev-1
     environment:
-      POSTGRES_USER: "${POSTGRES_USER}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
-      POSTGRES_HOST: "${POSTGRES_HOST}"
-      POSTGRES_PORT: "${POSTGRES_PORT}"
-      POSTGRES_DB: "${POSTGRES_DB}"
-#      RABBITMQ_HOST: "${RABBITMQ_HOST}"
-#      RABBITMQ_PORT: "${RABBITMQ_PORT}"
-#      RABBITMQ_USER: "${RABBITMQ_DEFAULT_USER}"
-#      RABBITMQ_PASS: "${RABBITMQ_DEFAULT_PASS}"
+      <<: [*postgres-env-base, *rabbitmq-env-default]
+      ALGORITHM: "levenshtein"
+      RABBITMQ_QUEUE: "cert-processor-levenshtein"
+
+  certificate-processor-lev-2:
+    <<: *certificate-processor-default
+    deploy:
+      replicas: 5
+    environment:
+      <<: [ *postgres-env-base, *rabbitmq-env-default ]
+      ALGORITHM: "levenshtein"
+      RABBITMQ_QUEUE: "cert-processor-levenshtein"
+
+  certificate-processor-simple-1:
+    <<: *certificate-processor-default
+    container_name: certificate-processor-simple-1
+    environment:
+      <<: [*postgres-env-base, *rabbitmq-env-base]
       ALGORITHM: "simple"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - "${PROJECT_PATH}/config/:/config/:ro"
-      - "${PROJECT_PATH}/services/commons/:/app/src/commons/:ro"
-    depends_on:
-      - rabbitmq
-      - certificate-stream
-      - postgres
+      RABBITMQ_QUEUE: "cert-processor-simple"
 
 networks:
   default:
