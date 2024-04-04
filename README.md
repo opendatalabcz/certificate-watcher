@@ -39,8 +39,10 @@ Supports multiple string matching algorithms for detecting suspicious domains.
 Currently supports:
 - simple string matching (`simple`)
   - looks if checked domain contains any of predefined strings
-- levenshtein distance (`levenshtein`)
+- levenshtein ratio (`levenshtein`)
   - looks if checked domain is similar to predefined strings according to levenshtein ratio
+- domain fuzzing (`fuzzing`)
+  - looks if checked domain contains any predefined strings created by fuzzing of legitimate domain
 
 TODO:
 - [ ] Add configuration to certificate-processor

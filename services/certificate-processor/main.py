@@ -129,10 +129,9 @@ def main():
         # TODO: DELETE LATER
         if TEST:  # noqa: SIM108
             domain = test_domains[counter % len(test_domains)]
+            print(f"Processing domain: {domain}")
         else:
             domain = rabbitmq_handler.receive_single_frame()
-            # todo: delete, just for testing queue processing
-            print(f"Processing domain: {domain}")
         if not domain:
             time.sleep(0.5)
             continue
