@@ -1,5 +1,6 @@
 from dnstwist import Fuzzer
 
+from ..commons.db_storage.models import SearchSetting
 from .abstract_phishing_domain_checker import AbstractPhishingDomainChecker
 
 
@@ -30,7 +31,7 @@ class FuzzingPhishingDomainChecker(AbstractPhishingDomainChecker):
         "transfer",
     ]
 
-    def __init__(self, settings: dict):
+    def __init__(self, settings: list[SearchSetting]):
         super().__init__(settings=settings)
         self.domain_lookup_table: dict = {}
         self.result_company_table: dict = {}
@@ -38,10 +39,10 @@ class FuzzingPhishingDomainChecker(AbstractPhishingDomainChecker):
 
     def __setup_checker(self):
         self.logger.info(f"Setting up {self.__class__.__name__}")
-        for setting in self.settings.values():
-            whole_domain = f"{setting.get('domain')}.{setting.get('top_level_domain')}"
-            self.domain_lookup_table[setting.get("domain")] = self.extract_fuzzed_domains(Fuzzer(whole_domain, self.KEYWORDS))
-        self.result_company_table = {setting.get("domain"): setting_name for setting_name, setting in self.settings.items()}
+        for setting in self.settings:
+            whole_domain = f"{setting.domain_base}.{setting.tld}"
+            self.domain_lookup_table[setting.domain_base] = self.extract_fuzzed_domains(Fuzzer(whole_domain, self.KEYWORDS))
+        self.result_company_table = {setting.domain_base: setting for setting in self.settings}
 
     def extract_fuzzed_domains(self, fuzzer: Fuzzer):
         # get only the last part of the domain

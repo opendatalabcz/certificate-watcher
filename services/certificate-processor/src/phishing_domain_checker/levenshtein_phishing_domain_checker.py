@@ -1,5 +1,6 @@
 from Levenshtein import ratio
 
+from ..commons.db_storage.models import SearchSetting
 from .abstract_phishing_domain_checker import AbstractPhishingDomainChecker
 
 
@@ -8,7 +9,7 @@ class LevenshteinPhishingDomainChecker(AbstractPhishingDomainChecker):
     # if a domain is a phishing domain by calculating the Levenshtein ratio
     # between the domain and a list of legitimate domains
 
-    def __init__(self, settings: dict):
+    def __init__(self, settings: list[SearchSetting]):
         super().__init__(settings=settings)
         self.legitimate_domains: list = []
         self.result_company_table: dict = {}
@@ -17,10 +18,8 @@ class LevenshteinPhishingDomainChecker(AbstractPhishingDomainChecker):
 
     def __setup_checker(self):
         self.logger.info(f"Setting up {self.__class__.__name__}")
-        self.result_company_table = {setting.get("domain"): setting_name for setting_name, setting in self.settings.items()}
+        self.result_company_table = {setting.domain_base: setting for setting in self.settings}
         self.legitimate_domains = list(self.result_company_table.keys())
-        if self.settings.get("ratio_threshold"):
-            self.ratio_threshold = self.settings.get("ratio_threshold")
 
     def check_domain(self, domain: str) -> str | None:
         if not domain:

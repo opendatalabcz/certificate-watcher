@@ -1,8 +1,9 @@
+from ..commons.db_storage.models import SearchSetting
 from ..commons.logging.app_logger import AppLogger
 
 
 class AbstractPhishingDomainChecker:
-    def __init__(self, settings: dict):
+    def __init__(self, settings: list[SearchSetting]):
         self.logger = AppLogger.get_logger(self.__class__.__name__)
         if not settings:
             self.logger.error("No settings provided for PhishingDomainChecker")

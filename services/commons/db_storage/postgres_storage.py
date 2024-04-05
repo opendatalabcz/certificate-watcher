@@ -58,7 +58,7 @@ class SqlAlchemyStorage(AbstractStorage):
         self.database_connection_info = database_connection_info
 
         self.engine = self.__create_connection_engine(self.__create_connection_string(self.database_connection_info))
-
+        self.persistent_sessions = None
         self.__init_tables()
 
     @staticmethod
@@ -99,9 +99,12 @@ class SqlAlchemyStorage(AbstractStorage):
         with self.get_session() as session:
             return session.query(model).filter_by(**kwargs).all()
 
-    def add(self, items: list):
-        with self.get_session() as session:
-            session.add_all(items)
-            session.commit()
-            # session.flush()
-            self.logger.info(f"Added {len(items)} items to the database")
+    def add(self, items: list, prepared_session=None):
+        session = prepared_session if prepared_session else self.get_session()
+        session.add_all(items)
+        session.commit()
+
+        self.logger.info(f"Added {len(items)} items to the database")
+
+        if not prepared_session:
+            session.close()

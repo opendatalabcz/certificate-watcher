@@ -5,7 +5,7 @@ import sys
 import time
 
 from requests.exceptions import ConnectionError, RequestException, SSLError, Timeout
-from src.commons.db_storage.models import FlaggedDomain
+from src.commons.db_storage.models import FlaggedData, SearchSetting
 from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.logging.app_logger import AppLogger
@@ -28,39 +28,6 @@ if not args.config_file:
     logger.error("Config file must be provided")
     sys.exit(1)
 
-
-phishing_catcher_settings_db = {
-    "ceskoslovenska-obchodna-banka": {
-        "domain": "csob",
-        "top_level_domain": "cz",
-        "logo": "PATH_TO_LOGO",
-    },
-    "banka-moneta": {
-        "domain": "moneta",
-        "top_level_domain": "cz",
-        "logo": "PATH_TO_LOGO",
-    },
-    "reiffeisen-bank": {
-        "domain": "reiffeisen",
-        "top_level_domain": "cz",
-        "logo": "PATH_TO_LOGO",
-    },
-    "unicredit-bank": {
-        "domain": "unicredit",
-        "top_level_domain": "cz",
-        "logo": "PATH_TO_LOGO",
-    },
-    "komercni-banka": {
-        "domain": "komercni-banka",
-        "top_level_domain": "cz",
-        "logo": "PATH_TO_LOGO",
-    },
-    "slovenska-sporitelna": {
-        "domain": "slsp",
-        "top_level_domain": "sk",
-        "logo": "PATH_TO_LOGO",
-    },
-}
 
 try:
     logger.info("Starting certificate-processor")
@@ -92,8 +59,6 @@ try:
         password=os.environ.get("POSTGRES_PASSWORD"),
     )
 
-    logger.info(f"CONNECTION INFO PG: {DATABASE_CONNECTION_INFO}")
-    logger.info(f"CONNECTION INFO RMQ: {RABBITMQ_CONNECTION_INFO}")
     CHECKER_ALGORITHM = os.environ.get("ALGORITHM", "simple")
 
     logger.info("Loaded environment variables")
@@ -106,11 +71,18 @@ except Exception as e:
 postgres_storage = SqlAlchemyStorage(database_connection_info=DATABASE_CONNECTION_INFO)
 rabbitmq_handler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_CONNECTION_INFO)
 rabbitmq_handler._setup_consumer()
-# parser should be loaded from config file
-webscraper = BS4WebScraper(parser=WEB_SCRAPING.get("parser"), timeout=int(WEB_SCRAPING.get("timeout")))
+
+# load phishing_catcher_settings from db
+search_settings_db = postgres_storage.get(SearchSetting)
+
+if not search_settings_db:
+    logger.error("No search settings found in database, KILLING MYSELF!")
+    sys.exit(1)
+
 
 # maybe would be better as config file or program parameter
-string_checker = phishing_domain_checker_factory(CHECKER_ALGORITHM, phishing_catcher_settings_db)
+string_checker = phishing_domain_checker_factory(CHECKER_ALGORITHM, search_settings_db)
+webscraper = BS4WebScraper(parser=WEB_SCRAPING.get("parser"), timeout=int(WEB_SCRAPING.get("timeout")))
 
 domain_handler_config = {}
 string_domain_handler = StringDomainHandler(config=domain_handler_config, checker=string_checker)
@@ -125,6 +97,7 @@ def main():
     logger.info(" [*] Waiting for messages. To exit press CTRL+C")
     logger.info(" [*] Processing messages from queue")
     counter = 0
+    main_loop_session = postgres_storage.get_session()
     while True:
         # TODO: DELETE LATER
         if TEST:  # noqa: SIM108
@@ -137,13 +110,15 @@ def main():
             continue
 
         counter += 1
-        str_result = string_domain_handler.check(domain)
-        if str_result:
+        str_check_result = string_domain_handler.check(domain)
+        if str_check_result:
             logger.info(f"Suspicious domain {domain} found, scraping started:")
-            record = FlaggedDomain(domain=domain, flagged_domain_base=str_result, algorithm_name=CHECKER_ALGORITHM)
+            main_loop_session.add(str_check_result)
+            main_loop_session.refresh(str_check_result)
+            record = FlaggedData(domain=domain, algorithm=CHECKER_ALGORITHM, search_setting_id=str_check_result.id, search_setting=str_check_result)
             try:
                 img_result = image_domain_handler.check([domain])
-                record.scraped_images = img_result
+                # record.scraped_images = img_result
                 record.scraped = True
             except (ConnectionError, SSLError, Timeout, RequestException) as e:
                 logger.error(f"Connection error: {e}")
@@ -154,7 +129,7 @@ def main():
                 img_result = None
                 record.scraped = False
 
-            logger.info(f"Domain {domain} processed, result: {str_result}")
+            logger.info(f"Domain {domain} processed, result: {str_check_result}")
             if not img_result:
                 logger.debug("No images found")
             else:
@@ -163,11 +138,13 @@ def main():
             # TODO: DELETE LATER
             if TEST:
                 logger.info(f"Test domain {domain} processed, result: {record}")
-            else:
-                postgres_storage.add([record])
+
+            postgres_storage.add([record], prepared_session=main_loop_session)
 
         if counter % 50 == 0:
             logger.info(f"Processed {counter} domains")
+
+    main_loop_session.close()
 
 
 if __name__ == "__main__":
