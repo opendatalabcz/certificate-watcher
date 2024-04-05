@@ -1,0 +1,32 @@
+{
+    "ceskoslovenska-obchodna-banka": {
+        "domain_base": "csob",
+        "tld": "cz",
+        "logo": null
+    },
+    "banka-moneta": {
+        "domain_base": "moneta",
+        "tld": "cz",
+        "logo": null
+    },
+    "reiffeisen-bank": {
+        "domain_base": "reiffeisen",
+        "tld": "cz",
+        "logo": null
+    },
+    "unicredit-bank": {
+        "domain_base": "unicredit",
+        "tld": "cz",
+        "logo": null
+    },
+    "komercni-banka": {
+        "domain_base": "komercni-banka",
+        "tld": "cz",
+        "logo": null
+    },
+    "slovenska-sporitelna": {
+        "domain_base": "slsp",
+        "tld": "sk",
+        "logo": null
+    }
+}

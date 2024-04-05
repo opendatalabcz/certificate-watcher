@@ -1,7 +1,7 @@
 import os
 
 import psycopg2
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from .abstract_storage import AbstractStorage
@@ -69,11 +69,35 @@ class SqlAlchemyStorage(AbstractStorage):
     def __create_connection_engine(connection_string):
         return create_engine(connection_string)
 
+    def reset_db_schema(self, schema="public"):
+        self.logger.info("Dropping all tables")
+
+        with self.engine.connect() as conn:
+            # Start a transaction
+            trans = conn.begin()
+
+            try:
+                # Drop the schema, cascading to drop all objects within it
+                conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
+                # Recreate the schema
+                conn.execute(text(f"CREATE SCHEMA {schema}"))
+                trans.commit()
+                self.logger.info(f"Schema '{schema}' has been reset.")
+            except Exception as e:
+                self.logger.error(f"An error occurred: {e}")
+                trans.rollback()
+
+        self.__init_tables()
+
     def __init_tables(self):
         Base.metadata.create_all(self.engine)
 
     def get_session(self):
         return sessionmaker(bind=self.engine)()
+
+    def get(self, model, **kwargs):
+        with self.get_session() as session:
+            return session.query(model).filter_by(**kwargs).all()
 
     def add(self, items: list):
         with self.get_session() as session:
