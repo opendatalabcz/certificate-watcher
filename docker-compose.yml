@@ -59,6 +59,18 @@ services:
 #      - "${RABBITMQ_PATH}/rabbitmq/conf/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf"
 #      - "${RABBITMQ_PATH}/rabbitmq/conf/enabled_plugins:/etc/rabbitmq/enabled_plugins"
 
+  settings-setup:
+    container_name: settings-setup
+    build:
+      context: "services/settings-setup"
+    environment:
+      <<: *postgres-env-default
+    volumes:
+      - "${PROJECT_PATH}/config/:/config/:ro"
+      - "${PROJECT_PATH}/services/commons/:/app/src/commons/:ro"
+    depends_on:
+      - postgres
+
   certificate-stream:
     container_name: certificate-stream
     build:

@@ -13,6 +13,10 @@ run:
 	@echo "Running script..."
 	@./run.sh
 
+run-setup:
+	@echo "Running setup services..."
+	@docker compose up -d settings-setup
+
 run-compose:
 	@echo "Running Docker Compose..."
 	@docker compose up
