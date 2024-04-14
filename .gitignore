@@ -169,4 +169,6 @@ services/*/data/*
 # test data
 /services/test/
 
+assets/*
+
 .DS_Store
