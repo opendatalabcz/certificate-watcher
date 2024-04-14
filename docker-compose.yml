@@ -27,6 +27,7 @@ x-defaults:
     volumes:
       - "${PROJECT_PATH}/config/:/config/:ro"
       - "${PROJECT_PATH}/services/commons/:/app/src/commons/:ro"
+      - "${PROJECT_PATH}/assets/:/assets/"
     depends_on:
       - rabbitmq
       - certificate-stream
@@ -68,6 +69,7 @@ services:
     volumes:
       - "${PROJECT_PATH}/config/:/config/:ro"
       - "${PROJECT_PATH}/services/commons/:/app/src/commons/:ro"
+      - "${PROJECT_PATH}/assets/:/assets/"
     depends_on:
       - postgres
 
