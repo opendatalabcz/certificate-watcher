@@ -2,12 +2,12 @@
     "ceskoslovenska-obchodna-banka": {
         "domain_base": "csob",
         "tld": "cz",
-        "logo": null
+        "logo": "images/csob.png"
     },
     "banka-moneta": {
         "domain_base": "moneta",
         "tld": "cz",
-        "logo": null
+        "logo": "images/moneta.png"
     },
     "reiffeisen-bank": {
         "domain_base": "reiffeisen",
