@@ -48,15 +48,16 @@ class FuzzingPhishingDomainChecker(AbstractPhishingDomainChecker):
         # get only the last part of the domain
         if not fuzzer.domains:
             fuzzer.generate()
-        return {item.get("domain").split(".")[-2] for item in fuzzer.domains}
+        return {".".join(item.get("domain").split(".")[:-1]) for item in fuzzer.domains}
 
-    def check_domain(self, domain: str) -> str | None:
+    def check_domain(self, domain: str) -> SearchSetting | None:
         if not domain:
             self.logger.warning("No domain provided")
             return None
         for legitimate_domain, fuzzed_domains in self.domain_lookup_table.items():
             for fuzzed_domain in fuzzed_domains:
                 if fuzzed_domain in domain:
+                    self.logger.info(f"Found {fuzzed_domain} in {domain}")
                     return self.result_company_table[legitimate_domain]
         return None
 

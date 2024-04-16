@@ -21,7 +21,7 @@ class LevenshteinPhishingDomainChecker(AbstractPhishingDomainChecker):
         self.result_company_table = {setting.domain_base: setting for setting in self.settings}
         self.legitimate_domains = list(self.result_company_table.keys())
 
-    def check_domain(self, domain: str) -> str | None:
+    def check_domain(self, domain: str) -> SearchSetting | None:
         if not domain:
             self.logger.warning("No domain provided")
             return None

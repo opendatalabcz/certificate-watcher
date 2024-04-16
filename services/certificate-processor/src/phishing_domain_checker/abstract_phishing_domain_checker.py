@@ -10,7 +10,7 @@ class AbstractPhishingDomainChecker:
             raise ValueError("No settings provided for PhishingDomainChecker")
         self.settings = settings
 
-    def check_domain(self, domain):
+    def check_domain(self, domain) -> SearchSetting | None:
         raise NotImplementedError("check_domain of AbstractPhishingDomainChecker not overloaded")
 
     @staticmethod
