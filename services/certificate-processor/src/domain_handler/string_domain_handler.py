@@ -1,5 +1,4 @@
-from typing import Union
-
+from ..commons.db_storage.models import SearchSetting
 from ..phishing_domain_checker.abstract_phishing_domain_checker import AbstractPhishingDomainChecker
 from .abstract_domain_handler import AbstractDomainHandler
 
@@ -13,7 +12,7 @@ class StringDomainHandler(AbstractDomainHandler):
         self.checker = checker
 
     # TODO: fix return stuff a bit and add also whois check
-    def check(self, domain) -> Union[None, list]:
+    def check(self, domain) -> None | SearchSetting:
         return self.checker.check_domain(domain)
 
     def whois_check(self, domain):
