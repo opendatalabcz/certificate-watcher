@@ -8,6 +8,7 @@ from requests.exceptions import ConnectionError, RequestException, SSLError, Tim
 from src.commons.db_storage.models import FlaggedData, SearchSetting
 from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
+from src.commons.img_storage.local_image_storage import LocalImageStorage
 from src.commons.logging.app_logger import AppLogger
 from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
 from src.commons.stream_handler.utils import RabbitMQConnectionInfo
@@ -44,6 +45,8 @@ try:
     )
 
     WEB_SCRAPING = dict(config.items("web-scraping"))
+
+    LOCAL_IMAGE_STORAGE_PATH = config.get("image-storage", "path") if config.getboolean("image-storage", "enabled") else None
 
     logger.info(f"Loaded config from {args.config_file}")
 
@@ -83,6 +86,7 @@ if not search_settings_db:
 # maybe would be better as config file or program parameter
 string_checker = phishing_domain_checker_factory(CHECKER_ALGORITHM, search_settings_db)
 webscraper = BS4WebScraper(parser=WEB_SCRAPING.get("parser"), timeout=int(WEB_SCRAPING.get("timeout")))
+local_image_storage = LocalImageStorage(LOCAL_IMAGE_STORAGE_PATH) if LOCAL_IMAGE_STORAGE_PATH else None
 
 domain_handler_config = {}
 string_domain_handler = StringDomainHandler(config=domain_handler_config, checker=string_checker)
