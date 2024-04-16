@@ -58,7 +58,7 @@ class SqlAlchemyStorage(AbstractStorage):
         self.database_connection_info = database_connection_info
 
         self.engine = self.__create_connection_engine(self.__create_connection_string(self.database_connection_info))
-        self.persistent_sessions = None
+        self.persistent_sessions = {}
         self.__init_tables()
 
     @staticmethod
@@ -95,16 +95,48 @@ class SqlAlchemyStorage(AbstractStorage):
     def get_session(self):
         return sessionmaker(bind=self.engine)()
 
-    def get(self, model, **kwargs):
-        with self.get_session() as session:
-            return session.query(model).filter_by(**kwargs).all()
+    def get_persistent_session_id(self, session_name):
+        if session_name not in self.persistent_sessions:
+            self.persistent_sessions[session_name] = self.get_session()
 
-    def add(self, items: list, prepared_session=None):
-        session = prepared_session if prepared_session else self.get_session()
+        return session_name
+
+    def commit_persistent_session(self, session_name):
+        self.get_persistent_session(session_name).commit()
+
+    def get_persistent_session(self, session_name):
+        if session_name not in self.persistent_sessions:
+            raise ValueError(f"Persistent session with id '{session_name}' does not exist")
+        return self.persistent_sessions[session_name]
+
+    def close_persistent_session(self, session_name):
+        if session_name in self.persistent_sessions:
+            self.persistent_sessions[session_name].close()
+            del self.persistent_sessions[session_name]
+
+    def get(self, model, persistent_session_id=None, **kwargs):
+        if persistent_session_id and persistent_session_id not in self.persistent_sessions:
+            raise ValueError(f"Persistent session with id '{persistent_session_id}' does not exist")
+
+        # with self.get_session() as session:
+        #     return session.query(model).filter_by(**kwargs).all()
+
+        session = self.persistent_sessions[persistent_session_id] if persistent_session_id else self.get_session()
+        result = session.query(model).filter_by(**kwargs).all()
+        if not persistent_session_id:
+            session.close()
+
+        return result
+
+    def add(self, items: list, persistent_session_id=None):
+        if persistent_session_id and persistent_session_id not in self.persistent_sessions:
+            raise ValueError(f"Persistent session with id '{persistent_session_id}' does not exist")
+
+        session = self.persistent_sessions[persistent_session_id] if persistent_session_id else self.get_session()
         session.add_all(items)
         session.commit()
 
         self.logger.info(f"Added {len(items)} items to the database")
 
-        if not prepared_session:
+        if not persistent_session_id:
             session.close()
