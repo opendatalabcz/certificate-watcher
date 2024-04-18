@@ -171,4 +171,6 @@ services/*/data/*
 
 assets/*
 
+services/commons/commons
+
 .DS_Store

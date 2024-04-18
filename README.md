@@ -33,7 +33,7 @@ This project is a SSL certificate scanning and phishing prevention tool.
 
 Service for inital watching of the certificate stream and its first processing. Currently in test state.
 
-- [ ] Add loggers to certificate-stream
+- [x] Add loggers to certificate-stream
 
 ### certificate-processor
 
@@ -64,6 +64,18 @@ TODO:
 ### postgres
 
 Postgres database for storing the certificate stream. Currently running allongside others in docker-compose.
+
+### settings-setup
+
+Service/script for setting up the database and adding test settings. Currently in test state.
+
+### backend
+
+Service for backend API to manage project
+
+### frontend
+
+Service for GUI to manage project
 
 ## Git workflow
 
