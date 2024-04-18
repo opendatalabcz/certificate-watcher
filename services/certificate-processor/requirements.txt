@@ -5,6 +5,7 @@ dnstwist==20240116
 imagehash==4.3.1
 levenshtein==0.25.0
 lxml==5.1.0
+passlib==1.7.4
 pika==1.3.2
 pillow==10.3.0
 psycopg2-binary==2.9.9

@@ -40,7 +40,7 @@ class ImageDomainHandler(AbstractDomainHandler):
 
         images = self.download_images(url, images_source)
 
-        local_path = None if not self.image_storage else f"{search_setting.owner}/{search_setting.domain_base}/{domain}"
+        local_path = None if not self.image_storage else f"{search_setting.owner.username}/{search_setting.domain_base}/{domain}"
         if self.image_storage:
             self.image_storage.save(images, local_path)
 

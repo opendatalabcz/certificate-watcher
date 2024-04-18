@@ -123,7 +123,7 @@ def main():
         str_check_result_setting: SearchSetting = string_domain_handler.check(domain)
         if str_check_result_setting:
             logger.info(f"Suspicious domain {domain} found for {str_check_result_setting.domain_base}, scraping started")
-            record = FlaggedData(domain=domain, algorithm=CHECKER_ALGORITHM, search_setting_id=str_check_result_setting.id)
+            record: FlaggedData = FlaggedData(domain=domain, algorithm=CHECKER_ALGORITHM, search_setting_id=str_check_result_setting.id)
             postgres_storage.add([record], persistent_session_id=main_loop_session_id)
             try:
                 image_domain_handler.check(domain, record, str_check_result_setting, main_loop_session_id)
