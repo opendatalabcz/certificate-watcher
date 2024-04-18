@@ -5,7 +5,7 @@ import os
 import sys
 
 from PIL import Image as PILImage
-from src.commons.db_storage.models import Image, SearchSetting
+from src.commons.db_storage.models import Image, SearchSetting, User
 from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.hashing.hash_handler import ImageHashHandler
@@ -40,8 +40,9 @@ try:
         password=os.environ.get("POSTGRES_PASSWORD"),
     )
 
-    ADD_DEMO_DATA = config.getboolean("settings-setup", "add_demo_data")
+    ADD_DEMO_DATA = config.getboolean("settings-setup", "add_demo_settings")
     RESET_DB = config.getboolean("settings-setup", "reset_db")
+    ADD_DEMO_USERS = config.getboolean("settings-setup", "add_demo_users")
 
     LOCAL_IMAGE_STORAGE_PATH = config.get("image-storage", "path") if config.getboolean("image-storage", "enabled") else None
 
@@ -59,13 +60,38 @@ if RESET_DB:
     if local_image_storage:
         local_image_storage.clear_directory_keep("")
 
+if ADD_DEMO_USERS:
+    # read data from assets/data.json into variable
+    with open("assets/users.json") as f:
+        data = json.load(f)
+    session_id = postgres_storage.get_persistent_session_id("users-setup-session")
+    # create users in db
+    for user in data:
+        pwd_hash = User.get_password_hash(user["password"])
+
+        user_obj = User(username=user["username"], hashed_password=pwd_hash, is_admin=user["isAdmin"])
+        # dont add user if already exists
+        if not postgres_storage.get(User, username=user["username"]):
+            postgres_storage.add([user_obj], persistent_session_id=session_id)
+        logger.info(f"Created user: {user}")
+
 if ADD_DEMO_DATA:
     # read data from assets/data.json into variable
-    with open("assets/data.json") as f:
+    with open("assets/search_settings.json") as f:
         data = json.load(f)
     session_id = postgres_storage.get_persistent_session_id("settings-setup-session")
     # create settings in db
-    for owner, setting in data.items():
+    for setting in data:
+        user = setting.get("user")
+        if user:
+            owner: User = postgres_storage.get(User, persistent_session_id=session_id, username=user)[0]
+            if not owner:
+                continue
+
+        else:
+            continue
+        setting.pop("user")
+
         logo = setting.get("logo")
         if logo:
             image = PILImage.open(f"assets/{logo}")
@@ -74,16 +100,19 @@ if ADD_DEMO_DATA:
                 origin="logo",
                 hash=image_hasher.string_from_hash(image_hasher.hash_image(image)),
                 name=name,
-                local_path=f"{owner}/{setting.get('domain_base')}/logo",
+                local_path=f"{owner.username}/{setting.get('domain_base')}/logo",
                 format=image.format,
             )
             if local_image_storage:
-                local_image_storage.save({name: {"img": image, "format": image.format}}, f"{owner}/{setting.get('domain_base')}/logo")
+                local_image_storage.save({name: {"img": image, "format": image.format}}, f"{owner.username}/{setting.get('domain_base')}/logo")
             if not postgres_storage.get(Image, origin="logo", name=name):
                 postgres_storage.add([logo_img], persistent_session_id=session_id)
+
         setting.pop("logo")
-        search_setting = SearchSetting(owner=owner, logo_id=logo_img.id if logo else None, **setting)
+        search_setting = SearchSetting(owner_id=owner.id, logo_id=logo_img.id if logo else None, **setting)
         # dont add setting if already exists
-        if not postgres_storage.get(SearchSetting, owner=owner, domain_base=setting["domain_base"]):
+        if not postgres_storage.get(SearchSetting, persistent_session_id=session_id, owner_id=owner.id, domain_base=setting["domain_base"]):
             postgres_storage.add([search_setting], persistent_session_id=session_id)
-        logger.info(f"Created setting for {owner}: {setting}")
+        logger.info(f"Created setting for {owner.username}: {setting}")
+
+    postgres_storage.close_persistent_session(session_id)

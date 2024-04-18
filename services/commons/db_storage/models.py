@@ -1,19 +1,42 @@
 from typing import Optional
 
+from passlib.context import CryptContext
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String, unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    company: Mapped[str] = mapped_column(String, nullable=True)
+
+    # Relationship to link users to their search settings
+    search_settings: Mapped[list["SearchSetting"]] = relationship("SearchSetting", back_populates="owner")
+
+    def verify_password(self, plain_password):
+        return pwd_context.verify(plain_password, self.hashed_password)
+
+    @staticmethod
+    def get_password_hash(password):
+        return pwd_context.hash(password)
+
+
 class SearchSetting(Base):
     __tablename__ = "search_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    owner: Mapped[str] = mapped_column(String, nullable=False, comment="Example: Reiffeisen bank")
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     domain_base: Mapped[str] = mapped_column(String, nullable=False, comment='Example: "reiffeisen"')
     tld: Mapped[str] = mapped_column(String, nullable=False, comment='Example: "cz"')
     additional_settings: Mapped[Optional[JSON]] = mapped_column(
@@ -21,6 +44,7 @@ class SearchSetting(Base):
     )
     logo_id: Mapped[int] = mapped_column(ForeignKey("images.id"), nullable=True)
 
+    owner: Mapped[User] = relationship("User", back_populates="search_settings")
     # Relationship to FlaggedData
     flagged_data = relationship("FlaggedData", back_populates="search_setting", lazy="noload")
     # Relationship to Image for the logo
