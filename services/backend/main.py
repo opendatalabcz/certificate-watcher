@@ -5,9 +5,12 @@ import sys
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.logging.app_logger import AppLogger
+from src.placeholder.get_db import get_db
+from src.routers import auth, search_settings
 
 parser = optparse.OptionParser(description="Certificate watcher service to manage the application")
 parser.add_option("-c", "--config-file", metavar="FILENAME", type=str, help="Config file location")
@@ -48,7 +51,17 @@ except Exception as e:
 postgres_storage = SqlAlchemyStorage(database_connection_info=DATABASE_CONNECTION_INFO)
 app = FastAPI()
 
-logger.info(DATABASE_CONNECTION_INFO)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.dependency_overrides[get_db] = postgres_storage.get_session
+app.include_router(auth.router)
+app.include_router(search_settings.router)
 
 
 @app.get("/")
@@ -57,4 +70,4 @@ def read_root():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False, reload_excludes=["*.log"], reload_dirs=["/app"])
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False, reload_excludes=["*.log"], reload_dirs=["/app/src"])  # noqa: S104
