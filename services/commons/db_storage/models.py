@@ -57,18 +57,13 @@ class Image(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     origin: Mapped[str] = mapped_column(String, nullable=False, comment="scraped or logo")
     flag_id: Mapped[int] = mapped_column(ForeignKey("flagged_data.id"), nullable=True)
-    hash: Mapped[str] = mapped_column(String, nullable=False)
+    hash: Mapped[str] = mapped_column(String, nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String)
-    local_path: Mapped[str] = mapped_column(String, nullable=False)
+    local_path: Mapped[str] = mapped_column(String, nullable=True)
     format: Mapped[str] = mapped_column(String, nullable=True)
     created: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     note: Mapped[Optional[str]] = mapped_column(String)
-
-    # Relationship to FlaggedData
-    # flagged_data = relationship("FlaggedData", back_populates="images")
-    # # Relationship to SearchSetting for the logo
-    # logo_setting = relationship("SearchSetting", back_populates="logo", uselist=False)
 
     flagged_data = relationship("FlaggedData", foreign_keys=[flag_id], back_populates="images")
     logo_setting = relationship("SearchSetting", foreign_keys=[SearchSetting.logo_id], back_populates="logo")
