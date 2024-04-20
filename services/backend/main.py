@@ -10,7 +10,7 @@ from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.logging.app_logger import AppLogger
 from src.placeholder.get_db import get_db
-from src.routers import auth, search_settings
+from src.routers import auth, flagged_data, images, search_settings
 
 parser = optparse.OptionParser(description="Certificate watcher service to manage the application")
 parser.add_option("-c", "--config-file", metavar="FILENAME", type=str, help="Config file location")
@@ -62,6 +62,8 @@ app.add_middleware(
 app.dependency_overrides[get_db] = postgres_storage.get_session
 app.include_router(auth.router)
 app.include_router(search_settings.router)
+app.include_router(flagged_data.router)
+app.include_router(images.router)
 
 
 @app.get("/")

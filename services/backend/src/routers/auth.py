@@ -10,6 +10,7 @@ from ..placeholder.get_db import get_db
 from ..schemas import schemas
 
 router = APIRouter()
+ACCESS_TOKEN_EXPIRE_MINUTES = 600
 
 
 @router.post("/signup/", response_model=dict)  # You can define a more specific response model if needed
@@ -39,7 +40,7 @@ def login_for_access_token(response: Response, login: schemas.UserCreate, db: Se
         )
 
     # Create a new token
-    access_token_expires = timedelta(minutes=15)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user.username, "user_id": user.id, "is_admin": user.is_admin}, expires_delta=access_token_expires)
 
     # Optionally, set a cookie with the token and redirect
