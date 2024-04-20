@@ -11,6 +11,7 @@ from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.hashing.hash_handler import ImageHashHandler
 from src.commons.img_storage.local_image_storage import LocalImageStorage
 from src.commons.logging.app_logger import AppLogger
+from src.commons.utils.image import convert_image_to_rgb_with_white_bg
 
 parser = optparse.OptionParser(description="Certificate watcher service to setup demo environment")
 parser.add_option("-c", "--config-file", metavar="FILENAME", type=str, help="Config file location")
@@ -94,7 +95,8 @@ if ADD_DEMO_DATA:
 
         logo = setting.get("logo")
         if logo:
-            image = PILImage.open(f"assets/{logo}")
+            image_load = PILImage.open(f"assets/{logo}")
+            image = convert_image_to_rgb_with_white_bg(image_load)
             name = logo.split("/")[-1].split(".")[-2]
             logo_img = Image(
                 origin="logo",
