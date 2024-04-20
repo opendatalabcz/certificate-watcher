@@ -13,7 +13,7 @@ class LevenshteinPhishingDomainChecker(AbstractPhishingDomainChecker):
         super().__init__(settings=settings)
         self.legitimate_domains: list = []
         self.result_company_table: dict = {}
-        self.ratio_threshold: float = 0.7
+        self.ratio_threshold: float = 0.8
         self.__setup_checker()
 
     def __setup_checker(self):

@@ -1,4 +1,3 @@
-# import AbstractWebScraper from directory next to current directory
 import re
 from io import BytesIO
 from urllib.parse import urljoin, urlparse
@@ -15,8 +14,6 @@ from ..commons.img_storage.local_image_storage import LocalImageStorage
 from ..commons.utils.image import convert_image_to_rgb_with_white_bg
 from ..scraper.web_scraper import AbstractWebScraper
 from .abstract_domain_handler import AbstractDomainHandler
-
-# from scraper.web_scraper import AbstractWebScraper
 
 
 class ImageDomainHandler(AbstractDomainHandler):
