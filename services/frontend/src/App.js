@@ -9,7 +9,9 @@ import PrivateRoute from './components/PrivateRoute';
 import SignupPage from './components/SignupPage';
 import AdminRoute from './components/admin/AdminRoute';
 import AdminDashboard from './components/admin/AdminDashboard';
-import SearchSettingDetail from './components/searchSetting/SearchSettingDetail';
+import SearchSettingDetailPage from './components/searchSetting/SearchSettingDetailPage';
+import FlaggedDataDetailPage from './components/flaggedData/FlaggedDataDetailPage';
+
 
 function App() {
   return (
@@ -22,8 +24,11 @@ function App() {
           <Route path="/" element={<PrivateRoute />}>
             <Route index element={<HomePage />} />
           </Route>
-          <Route path="/settings/detail/:id" element={<PrivateRoute />}>
-            <Route index element={<SearchSettingDetail />} />
+          <Route path="/search-settings/:id/" element={<PrivateRoute />}>
+            <Route index element={<SearchSettingDetailPage />} />
+          </Route>
+          <Route path="/flagged-data/:id/" element={<PrivateRoute />}>
+            <Route index element={<FlaggedDataDetailPage />} />
           </Route>
           <Route path="/admin" element={<AdminRoute />}>
             <Route index element={<AdminDashboard />} />

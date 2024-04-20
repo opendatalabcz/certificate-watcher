@@ -9,7 +9,7 @@ const SearchSettingCard = ({ setting }) => {
                 <h5 className="card-title">{setting.domain_base}.{setting.tld}</h5>
                 <p className="card-text">Flagged Data Count: {setting.flagged_data_count}</p>
                 {/* Link to the detail page */}
-                <Link to={`/settings/detail/${setting.id}`} className="btn btn-light">View Details</Link>
+                <Link to={`/search-settings/${setting?.id}`} className="btn btn-light">View Details</Link>
             </div>
         </div>
     );
