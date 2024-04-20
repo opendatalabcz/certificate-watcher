@@ -12,6 +12,7 @@ from ..commons.db_storage.models import FlaggedData, Image, SearchSetting
 from ..commons.db_storage.postgres_storage import SqlAlchemyStorage
 from ..commons.hashing.hash_handler import ImageHashHandler
 from ..commons.img_storage.local_image_storage import LocalImageStorage
+from ..commons.utils.image import convert_image_to_rgb_with_white_bg
 from ..scraper.web_scraper import AbstractWebScraper
 from .abstract_domain_handler import AbstractDomainHandler
 
@@ -103,7 +104,8 @@ class ImageDomainHandler(AbstractDomainHandler):
 
             image = PILImage.open(content)
             self.logger.info(f"Downloaded {image_url}")
-            return image
+            # Normalize image to RGB with white background
+            return convert_image_to_rgb_with_white_bg(image)
         except requests.RequestException as e:
             self.logger.error(f"Failed to download {image_url}: {e}")
         except OSError as e:
