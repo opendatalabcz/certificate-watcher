@@ -47,6 +47,8 @@ Currently supports:
   - looks if checked domain is similar to predefined strings according to levenshtein ratio
 - domain fuzzing (`fuzzing`)
   - looks if checked domain contains any predefined strings created by fuzzing of legitimate domain
+- domain fuzzing with levenshtein ratio (`levensh-fuzz`)
+  - looks if checked domain is similar to predefined strings created by fuzzing of legitimate domain according to levenshtein ratio
 
 TODO:
 - [ ] Add configuration to certificate-processor
