@@ -14,6 +14,3 @@ class StringDomainHandler(AbstractDomainHandler):
     # TODO: fix return stuff a bit and add also whois check
     def check(self, domain) -> None | SearchSetting:
         return self.checker.check_domain(domain)
-
-    def whois_check(self, domain):
-        return domain

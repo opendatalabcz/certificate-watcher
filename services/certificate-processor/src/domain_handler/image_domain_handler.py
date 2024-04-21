@@ -6,9 +6,11 @@ from uuid import uuid4
 import requests
 from cairosvg import svg2png
 from PIL import Image as PILImage
+from requests.exceptions import ConnectionError, RequestException, SSLError, Timeout
 
 from ..commons.db_storage.models import FlaggedData, Image, SearchSetting
 from ..commons.db_storage.postgres_storage import SqlAlchemyStorage
+from ..commons.db_storage.utils import NOTE_DB_MAPPING
 from ..commons.hashing.hash_handler import ImageHashHandler
 from ..commons.img_storage.local_image_storage import LocalImageStorage
 from ..commons.utils.image import convert_image_to_rgb_with_white_bg
@@ -34,9 +36,22 @@ class ImageDomainHandler(AbstractDomainHandler):
 
     def check(self, domain: str, flagged_data: FlaggedData, search_setting: SearchSetting, db_session_id: str | None = None) -> bool:
         url = f"https://{domain}"
-        images_source = self.webscraper.get_images(url)
+        try:
+            images_source = self.webscraper.get_images(url)
+        except (ConnectionError, SSLError, Timeout, RequestException) as err:
+            flagged_data.note = NOTE_DB_MAPPING["SCRAPE_ERROR"]
+            if db_session_id:
+                self.postgres_storage.commit_persistent_session(db_session_id)
+            self.logger.error(f"Error scraping while checking domain {domain}: {err}")
+            return False
 
         images = self.download_images(url, images_source)
+        if not images:
+            flagged_data.images_scraped = True
+            flagged_data.note = NOTE_DB_MAPPING["NO_STATIC_IMAGES"]
+            if db_session_id:
+                self.postgres_storage.commit_persistent_session(db_session_id)
+            return True
 
         local_path = None if not self.image_storage else f"{search_setting.owner.username}/{search_setting.domain_base}/{domain}"
         if self.image_storage:
@@ -49,8 +64,9 @@ class ImageDomainHandler(AbstractDomainHandler):
                 name=name,
                 image_url=image_data["src"],
                 local_path=local_path if image_data["saved"] else None,
-                format=image_data["img"].format if image_data["img"] else None,
+                format=image_data["img"].format if image_data["downloaded"] else None,
                 flag_id=flagged_data.id,
+                note=NOTE_DB_MAPPING["IMG_DOWNLOAD_ERROR"] if not image_data["downloaded"] else None,
             )
             for name, image_data in images.items()
         ]
@@ -66,14 +82,14 @@ class ImageDomainHandler(AbstractDomainHandler):
 
         if db_session_id:
             self.postgres_storage.commit_persistent_session(db_session_id)
-        return bool(db_images)
+        return True
 
     def check_for_duplicate_images(self, images: list[Image], logo: Image) -> Image | None:
         for image in images:
-            hamming_distance = self.hash_handler.compare_string_hashes(logo.hash, image.hash)
-            if hamming_distance < self.hash_threshold:
-                return image
-
+            if image.hash:
+                hamming_distance = self.hash_handler.compare_string_hashes(logo.hash, image.hash)
+                if hamming_distance < self.hash_threshold:
+                    return image
         return None
 
     def download_images(self, url: str, images_source) -> dict:
@@ -86,7 +102,8 @@ class ImageDomainHandler(AbstractDomainHandler):
                     self.logger.info(f"External image found: {full_url}")
                 else:
                     self.logger.info(f"Internal image found: {full_url}")
-                result[uuid4()] = {"img": self.__download_image(full_url), "src": full_url}
+                img = self.__download_image(full_url)
+                result[uuid4()] = {"img": img, "src": full_url, "downloaded": bool(img)}
 
         return result
 
@@ -114,14 +131,44 @@ class ImageDomainHandler(AbstractDomainHandler):
         return [image.get("src") for image in images]
 
     def normalize_image_url(self, src, page_url):
-        """
-        Normalize the image URL by resolving relative and protocol-relative URLs
-        against the page URL.
-        """
         return urljoin(page_url, src)
 
     def is_external_source(self, url, base_url):
-        """
-        Determine if the URL is external by comparing its domain with the base URL's domain.
-        """
         return urlparse(url).netloc != urlparse(base_url).netloc
+
+    def check_retry_domain(self, flagged_data: FlaggedData, db_session_id: str | None = None) -> bool:
+        if flagged_data.note == NOTE_DB_MAPPING["SCRAPE_ERROR"]:
+            return self.check(flagged_data.domain, flagged_data, flagged_data.search_setting, db_session_id)
+
+        return True
+
+    def check_retry_download_images(self, flagged_data: FlaggedData, images: list[Image], db_session_id: str | None = None) -> bool:
+        images_map: dict = {}
+
+        search_setting: SearchSetting = self.postgres_storage.get(SearchSetting, db_session_id, id=flagged_data.search_setting_id)[0]
+        local_path: str = None if not self.image_storage else f"{search_setting.owner.username}/{search_setting.domain_base}/{flagged_data.domain}"
+
+        for image in images:
+            # result[image] = {"img": img, "src": full_url, "downloaded": bool(img)}
+            images_map[image.name] = {"img": None, "src": image.image_url, "downloaded": False}
+            images_map[image.name]["img"] = self.__download_image(image.image_url)
+            images_map[image.name]["downloaded"] = bool(images_map[image.name]["img"])
+            image.note = None if images_map[image.name]["downloaded"] else NOTE_DB_MAPPING["IMG_DOWNLOAD_ERROR"]
+            image.format = images_map[image.name]["img"].format if images_map[image.name]["downloaded"] else None
+            image.local_path = local_path if images_map[image.name]["downloaded"] and local_path else None
+            image.hash = (
+                self.hash_handler.string_from_hash(self.hash_handler.hash_image(images_map[image.name]["img"])) if images_map[image.name]["img"] else None
+            )
+
+        if self.image_storage:
+            self.image_storage.save(images_map, local_path)
+
+        if search_setting.logo:
+            duplicate_image = self.check_for_duplicate_images(images, search_setting.logo)
+            if duplicate_image:
+                flagged_data.suspected_logo_found = duplicate_image.id
+                self.logger.info(f"Duplicate image found: {duplicate_image.name}")
+
+        if db_session_id:
+            self.postgres_storage.commit_persistent_session(db_session_id)
+        return True

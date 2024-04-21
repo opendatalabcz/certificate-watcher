@@ -79,6 +79,7 @@ class FlaggedData(Base):
     flagged_time: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     images_scraped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     suspected_logo_found: Mapped[int] = mapped_column(ForeignKey("images.id"), nullable=True)
+    note: Mapped[Optional[str]] = mapped_column(String)
 
     last_scraped: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
