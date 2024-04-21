@@ -149,7 +149,6 @@ class ImageDomainHandler(AbstractDomainHandler):
         local_path: str = None if not self.image_storage else f"{search_setting.owner.username}/{search_setting.domain_base}/{flagged_data.domain}"
 
         for image in images:
-            # result[image] = {"img": img, "src": full_url, "downloaded": bool(img)}
             images_map[image.name] = {"img": None, "src": image.image_url, "downloaded": False}
             images_map[image.name]["img"] = self.__download_image(image.image_url)
             images_map[image.name]["downloaded"] = bool(images_map[image.name]["img"])

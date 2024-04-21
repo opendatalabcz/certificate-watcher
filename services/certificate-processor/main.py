@@ -64,7 +64,7 @@ try:
 
     CHECKER_ALGORITHM = os.environ.get("ALGORITHM", "simple")
     MODE = os.environ.get("MODE", "default")
-    SCRAPING_ENABLED = os.environ.get("SCRAPING_ENABLED", "true")
+    SCRAPING_ENABLED = os.environ.get("SCRAPING_ENABLED", "true") == "true"
 
     logger.info("Loaded environment variables")
     logger.info("Config loaded successfully")
