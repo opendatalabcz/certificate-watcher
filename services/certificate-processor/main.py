@@ -64,6 +64,7 @@ try:
 
     CHECKER_ALGORITHM = os.environ.get("ALGORITHM", "simple")
     MODE = os.environ.get("MODE", "default")
+    SCRAPING_ENABLED = os.environ.get("SCRAPING_ENABLED", "true")
 
     logger.info("Loaded environment variables")
     logger.info("Config loaded successfully")
@@ -127,16 +128,17 @@ def main():
                 logger.info(f"Suspicious domain {domain} found for {str_check_result_setting.domain_base}, scraping started")
                 record: FlaggedData = FlaggedData(domain=domain, algorithm=CHECKER_ALGORITHM, search_setting_id=str_check_result_setting.id)
                 postgres_storage.add([record], persistent_session_id=main_loop_session_id)
-                try:
-                    success_image_handle = image_domain_handler.check(domain, record, str_check_result_setting, main_loop_session_id)
-                    logger.info(f"Images {'successfully' if success_image_handle else 'unsuccessfully'} scraped for {record.domain}")
-                except (ConnectionError, SSLError, Timeout, RequestException) as err:
-                    logger.error(f"Connection error: {err}")
-                    postgres_storage.commit_persistent_session(main_loop_session_id)
-                except Exception as err:
-                    logger.error(f"Unexpected error: {err}")
-                    record.note = "Unexpected error thrown on scraping"
-                    postgres_storage.commit_persistent_session(main_loop_session_id)
+                if SCRAPING_ENABLED:
+                    try:
+                        success_image_handle = image_domain_handler.check(domain, record, str_check_result_setting, main_loop_session_id)
+                        logger.info(f"Images {'successfully' if success_image_handle else 'unsuccessfully'} scraped for {record.domain}")
+                    except (ConnectionError, SSLError, Timeout, RequestException) as err:
+                        logger.error(f"Connection error: {err}")
+                        postgres_storage.commit_persistent_session(main_loop_session_id)
+                    except Exception as err:
+                        logger.error(f"Unexpected error: {err}")
+                        record.note = "Unexpected error thrown on scraping"
+                        postgres_storage.commit_persistent_session(main_loop_session_id)
 
                 logger.info(f"Domain {domain} processed, result for: {str_check_result_setting.domain_base}")
 
