@@ -85,44 +85,46 @@ services:
     depends_on:
       - rabbitmq
 
-  certificate-processor-levensh:
-    <<: *certificate-processor-default
-    deploy:
-      replicas: 5
-    environment:
-      <<: [*postgres-env-base, *rabbitmq-env-default]
-      ALGORITHM: "levenshtein"
-      SCRAPING_ENABLED: "false"
-      RABBITMQ_QUEUE: "cert-processor-levensh"
-
-  certificate-processor-levensh-fuzz:
-    <<: *certificate-processor-default
-    deploy:
-      replicas: 5
-    environment:
-      <<: [ *postgres-env-base, *rabbitmq-env-default ]
-      ALGORITHM: "levensh-fuzz"
-      SCRAPING_ENABLED: "false"
-      RABBITMQ_QUEUE: "cert-processor-levensh-fuzz"
-
-  certificate-processor-fuzz:
-    <<: *certificate-processor-default
-    deploy:
-      replicas: 5
-    environment:
-      <<: [ *postgres-env-base, *rabbitmq-env-default ]
-      ALGORITHM: "fuzzing"
-      SCRAPING_ENABLED: "false"
-      RABBITMQ_QUEUE: "cert-processor-fuzz"
-
   certificate-processor-simple:
     <<: *certificate-processor-default
     deploy:
-      replicas: 4
+      replicas: 2
     environment:
       <<: [*postgres-env-base, *rabbitmq-env-base]
       ALGORITHM: "simple"
       RABBITMQ_QUEUE: "cert-processor-simple"
+
+#  certificate-processor-levensh:
+#    <<: *certificate-processor-default
+#    deploy:
+#      replicas: 2
+#    environment:
+#      <<: [*postgres-env-base, *rabbitmq-env-default]
+#      ALGORITHM: "levenshtein"
+#      SCRAPING_ENABLED: "false"
+#      RABBITMQ_QUEUE: "cert-processor-levensh"
+#
+#  certificate-processor-levensh-fuzz:
+#    <<: *certificate-processor-default
+#    deploy:
+#      replicas: 4
+#    environment:
+#      <<: [ *postgres-env-base, *rabbitmq-env-default ]
+#      ALGORITHM: "levensh-fuzz"
+#      SCRAPING_ENABLED: "false"
+#      RABBITMQ_QUEUE: "cert-processor-levensh-fuzz"
+#
+#  certificate-processor-fuzz:
+#    <<: *certificate-processor-default
+#    deploy:
+#      replicas: 3
+#    environment:
+#      <<: [ *postgres-env-base, *rabbitmq-env-default ]
+#      ALGORITHM: "fuzzing"
+#      SCRAPING_ENABLED: "false"
+#      RABBITMQ_QUEUE: "cert-processor-fuzz"
+
+
 
 networks:
   default:

@@ -8,6 +8,6 @@ sleep 15
 
 # Start all other services
 docker compose up -d certificate-stream
-docker compose up -d certificate-processor-simple-1
+docker compose up -d certificate-processor-simple
 
 echo "All services are up and running"
