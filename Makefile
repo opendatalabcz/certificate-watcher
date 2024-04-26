@@ -15,6 +15,7 @@ run:
 
 run-setup:
 	@echo "Running setup services..."
+	@docker network create "certificate-watcher-net"
 	@docker compose up -d settings-setup
 
 run-compose:
