@@ -4,6 +4,8 @@ build-dev:
 	@echo "Building services..."
 	@cd services/certificate-stream && make build
 	@cd services/certificate-processor && make build
+	@cd services/settings-setup && make build
+	@cd services/backend && make build
 
 build:
 	@echo "Building services..."
