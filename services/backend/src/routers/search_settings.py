@@ -1,11 +1,11 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..authentication.token import get_current_user
-from ..commons.db_storage.models import FlaggedData, SearchSetting, User
+from ..commons.db_storage.models import FlaggedData, Image, SearchSetting, User
 from ..placeholder.get_db import get_db
 from ..schemas.schemas import SearchSettingDetail, SearchSettingOut
 
@@ -81,3 +81,32 @@ def get_search_setting_detail(setting_id: int, db: Session = Depends(get_db), cu
             for fd in flagged_data_list
         ],
     }
+
+
+@router.post("/search-settings/")
+async def create_search_setting(
+    domain_base: str = Form(...),
+    tld: str = Form(...),
+    additional_settings: str = Form(None),
+    logo: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    new_search_setting = SearchSetting(owner_id=user.id, domain_base=domain_base, tld=tld, additional_settings=additional_settings)
+    db.add(new_search_setting)
+    db.commit()
+
+    if logo:
+        # Save and process logo
+        image_data = await logo.read()
+        # Assuming function to save image and create an Image record
+        new_image = save_image(image_data, logo.filename, user.id, db)
+        new_search_setting.logo_id = new_image.id
+        db.commit()
+
+    return {"message": "Search setting created successfully"}
+
+
+def save_image(data: UploadFile, filename: str, user_id: str, db: Session) -> Image:
+    # Here I would handle file saving and creating a new Image record
+    return None
