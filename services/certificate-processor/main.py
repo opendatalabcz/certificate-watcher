@@ -14,6 +14,7 @@ from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHan
 from src.commons.stream_handler.utils import RabbitMQConnectionInfo
 from src.domain_handler.image_domain_handler import ImageDomainHandler
 from src.domain_handler.string_domain_handler import StringDomainHandler
+from src.phishing_domain_checker.abstract_phishing_domain_checker import AbstractPhishingDomainChecker
 from src.phishing_domain_checker.phishing_domain_checker_factory import phishing_domain_checker_factory
 from src.scraper.web_scraper import BS4WebScraper
 
@@ -62,9 +63,9 @@ try:
         password=os.environ.get("POSTGRES_PASSWORD"),
     )
 
-    CHECKER_ALGORITHM = os.environ.get("ALGORITHM", "simple")
-    MODE = os.environ.get("MODE", "default")
-    SCRAPING_ENABLED = os.environ.get("SCRAPING_ENABLED", "true") == "true"
+    CHECKER_ALGORITHM: str = os.environ.get("ALGORITHM", "simple")
+    MODE: str = os.environ.get("MODE", "default")
+    SCRAPING_ENABLED: bool = os.environ.get("SCRAPING_ENABLED", "true") == "true"
 
     logger.info("Loaded environment variables")
     logger.info("Config loaded successfully")
@@ -73,26 +74,26 @@ except Exception as e:
     logger.error(f"Fatal error during initialization: {e}")
     sys.exit(1)
 
-postgres_storage = SqlAlchemyStorage(database_connection_info=DATABASE_CONNECTION_INFO)
-rabbitmq_handler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_CONNECTION_INFO)
+postgres_storage: SqlAlchemyStorage = SqlAlchemyStorage(database_connection_info=DATABASE_CONNECTION_INFO)
+rabbitmq_handler: RabbitMQStreamHandler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_CONNECTION_INFO)
 rabbitmq_handler._setup_consumer()
 
 # load phishing_catcher_settings from db
-main_loop_session_id = postgres_storage.get_persistent_session_id("certificate-processor-main-loop")
-search_settings_db = postgres_storage.get(SearchSetting, persistent_session_id=main_loop_session_id)
+main_loop_session_id: str = postgres_storage.get_persistent_session_id("certificate-processor-main-loop")
+search_settings_db: list[SearchSetting] = postgres_storage.get(SearchSetting, persistent_session_id=main_loop_session_id)
 
 if not search_settings_db:
     logger.error("No search settings found in database, KILLING MYSELF!")
     sys.exit(1)
 
 
-string_checker = phishing_domain_checker_factory(CHECKER_ALGORITHM, search_settings_db)
-webscraper = BS4WebScraper(parser=WEB_SCRAPING.get("parser"), timeout=int(WEB_SCRAPING.get("timeout")))
-local_image_storage = LocalImageStorage(LOCAL_IMAGE_STORAGE_PATH) if LOCAL_IMAGE_STORAGE_PATH else None
-domain_handler_config = {}
+string_checker: AbstractPhishingDomainChecker = phishing_domain_checker_factory(CHECKER_ALGORITHM, search_settings_db)
+webscraper: BS4WebScraper = BS4WebScraper(parser=WEB_SCRAPING.get("parser"), timeout=int(WEB_SCRAPING.get("timeout")))
+local_image_storage: LocalImageStorage = LocalImageStorage(LOCAL_IMAGE_STORAGE_PATH) if LOCAL_IMAGE_STORAGE_PATH else None
+domain_handler_config: dict = {}
 
-string_domain_handler = StringDomainHandler(config=domain_handler_config, checker=string_checker)
-image_domain_handler = ImageDomainHandler(
+string_domain_handler: StringDomainHandler = StringDomainHandler(config=domain_handler_config, checker=string_checker)
+image_domain_handler: ImageDomainHandler = ImageDomainHandler(
     config=domain_handler_config, postgres_storage=postgres_storage, image_storage=local_image_storage, webscraper=webscraper
 )
 
@@ -117,7 +118,7 @@ def main():
                     break
                 logger.info(f"Processing domain: {domain}")
             else:
-                domain = rabbitmq_handler.receive_single_frame()
+                domain: str | None = rabbitmq_handler.receive_single_frame()
             if not domain:
                 time.sleep(0.5)
                 continue
@@ -128,6 +129,8 @@ def main():
                 logger.info(f"Suspicious domain {domain} found for {str_check_result_setting.domain_base}, scraping started")
                 record: FlaggedData = FlaggedData(domain=domain, algorithm=CHECKER_ALGORITHM, search_setting_id=str_check_result_setting.id)
                 postgres_storage.add([record], persistent_session_id=main_loop_session_id)
+
+                # TODO: REWORK TO SEND to rabbitmq
                 if SCRAPING_ENABLED:
                     try:
                         success_image_handle = image_domain_handler.check(domain, record, str_check_result_setting, main_loop_session_id)
@@ -149,6 +152,7 @@ def main():
         logger.info(" [*] Periodic mode")
         logger.info(" [*] Processing unfinished database records")
         while True:
+            # TODO: REWORK INTO RECEIVING FROM RABBITMQ
             unscraped_flagged_data = postgres_storage.get(FlaggedData, persistent_session_id=main_loop_session_id, note=NOTE_DB_MAPPING["SCRAPE_ERROR"])
             filtered_flagged_data = [record for record in unscraped_flagged_data if "*" not in record.domain]
 
@@ -156,7 +160,7 @@ def main():
 
             for record in filtered_flagged_data:
                 try:
-                    success_image_handle = image_domain_handler.check_retry_domain(record, main_loop_session_id)
+                    success_image_handle: bool = image_domain_handler.check_retry_domain(record, main_loop_session_id)
 
                     logger.info(f"Images {'successfully' if success_image_handle else 'unsuccessfully'} scraped for {record.domain}")
                 except Exception as err:  # noqa: PERF203
@@ -199,4 +203,4 @@ if __name__ == "__main__":
         try:
             sys.exit(0)
         except SystemExit:
-            os.exit(0)
+            sys.exit(0)
