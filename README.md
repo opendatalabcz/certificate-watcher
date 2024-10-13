@@ -58,6 +58,7 @@ TODO:
 ### rabbitmq
 
 RabbitMQ for the certificate stream. Currently running allongside others in docker-compose.
+GUI available at `localhost:15672`.
 
 TODO:
 - [ ] Add user and password to rabbitmq
