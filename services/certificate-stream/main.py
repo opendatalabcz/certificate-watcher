@@ -34,13 +34,13 @@ try:
         virtualhost=config.get("rabbitmq", "virtualhost"),
         exchange=config.get("rabbitmq", "exchange"),
         connect_timeout=config.getint("rabbitmq", "connect_timeout"),
+        routing_key=config.get("rabbitmq", "DOMAIN_STRING_ROUTING_KEY"),
     )
 
     logger.info(f"Loaded config from {args.config_file}")
 
     RABBITMQ_CONNECTION_INFO.username = os.environ.get("RABBITMQ_DEFAULT_USER")
     RABBITMQ_CONNECTION_INFO.password = os.environ.get("RABBITMQ_DEFAULT_PASS")
-    RABBITMQ_CONNECTION_INFO.queue = os.environ.get("RABBITMQ_QUEUE", None)
 
     logger.info("Loaded environment variables")
     logger.info("Config loaded successfully")
@@ -50,7 +50,7 @@ except Exception as e:
     sys.exit(1)
 
 rabbitmq_handler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_CONNECTION_INFO)
-rabbitmq_handler._setup_producer()
+rabbitmq_handler.setup_producer()
 
 # TODO: Remove after final debug
 test = False

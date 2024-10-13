@@ -4,10 +4,9 @@ import os
 import sys
 import time
 
-from requests.exceptions import ConnectionError, RequestException, SSLError, Timeout
-from src.commons.db_storage.models import FlaggedData, Image, SearchSetting
+from src.commons.db_storage.models import FlaggedData, SearchSetting
 from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
-from src.commons.db_storage.utils import NOTE_DB_MAPPING, PostgreSQLConnectionInfo
+from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.img_storage.local_image_storage import LocalImageStorage
 from src.commons.logging.app_logger import AppLogger
 from src.commons.stream_handler.rabbitmq_stream_handler import RabbitMQStreamHandler
@@ -37,12 +36,24 @@ try:
     config = configparser.ConfigParser()
     config.read(args.config_file)
 
-    RABBITMQ_CONNECTION_INFO = RabbitMQConnectionInfo(
+    RABBITMQ_STRING_CHECKER_CONNECTION_INFO = RabbitMQConnectionInfo(
         hostname=config.get("rabbitmq", "hostname"),
         port=config.getint("rabbitmq", "port"),
         virtualhost=config.get("rabbitmq", "virtualhost"),
         exchange=config.get("rabbitmq", "exchange"),
         connect_timeout=config.getint("rabbitmq", "connect_timeout"),
+        routing_key=config.get("rabbitmq", "DOMAIN_STRING_ROUTING_KEY"),
+        queue=config.get("rabbitmq", "DOMAIN_STRING_PROMISC_QUEUE"),
+    )
+
+    RABBITMQ_IMAGE_CHECKER_CONNECTION_INFO = RabbitMQConnectionInfo(
+        hostname=config.get("rabbitmq", "hostname"),
+        port=config.getint("rabbitmq", "port"),
+        virtualhost=config.get("rabbitmq", "virtualhost"),
+        exchange=config.get("rabbitmq", "exchange"),
+        connect_timeout=config.getint("rabbitmq", "connect_timeout"),
+        routing_key=config.get("rabbitmq", "DOMAIN_IMAGE_ROUTING_KEY"),
+        queue=config.get("rabbitmq", "DOMAIN_IMAGE_PROMISC_QUEUE"),
     )
 
     WEB_SCRAPING = dict(config.items("web-scraping"))
@@ -51,9 +62,11 @@ try:
 
     logger.info(f"Loaded config from {args.config_file}")
 
-    RABBITMQ_CONNECTION_INFO.username = os.environ.get("RABBITMQ_DEFAULT_USER")
-    RABBITMQ_CONNECTION_INFO.password = os.environ.get("RABBITMQ_DEFAULT_PASS")
-    RABBITMQ_CONNECTION_INFO.queue = os.environ.get("RABBITMQ_QUEUE", None)
+    RABBITMQ_STRING_CHECKER_CONNECTION_INFO.username = os.environ.get("RABBITMQ_DEFAULT_USER")
+    RABBITMQ_STRING_CHECKER_CONNECTION_INFO.password = os.environ.get("RABBITMQ_DEFAULT_PASS")
+
+    RABBITMQ_IMAGE_CHECKER_CONNECTION_INFO.username = os.environ.get("RABBITMQ_DEFAULT_USER")
+    RABBITMQ_IMAGE_CHECKER_CONNECTION_INFO.password = os.environ.get("RABBITMQ_DEFAULT_PASS")
 
     DATABASE_CONNECTION_INFO = PostgreSQLConnectionInfo(
         hostname=config.get("postgres", "hostname"),
@@ -64,8 +77,8 @@ try:
     )
 
     CHECKER_ALGORITHM: str = os.environ.get("ALGORITHM", "simple")
-    MODE: str = os.environ.get("MODE", "default")
-    SCRAPING_ENABLED: bool = os.environ.get("SCRAPING_ENABLED", "true") == "true"
+    MODE: str = os.environ.get("MODE", "domain")
+    SCRAPING_ENABLED: bool = False
 
     logger.info("Loaded environment variables")
     logger.info("Config loaded successfully")
@@ -75,8 +88,7 @@ except Exception as e:
     sys.exit(1)
 
 postgres_storage: SqlAlchemyStorage = SqlAlchemyStorage(database_connection_info=DATABASE_CONNECTION_INFO)
-rabbitmq_handler: RabbitMQStreamHandler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_CONNECTION_INFO)
-rabbitmq_handler._setup_consumer()
+
 
 # load phishing_catcher_settings from db
 main_loop_session_id: str = postgres_storage.get_persistent_session_id("certificate-processor-main-loop")
@@ -98,14 +110,20 @@ image_domain_handler: ImageDomainHandler = ImageDomainHandler(
 )
 
 # TODO: DELETE LATER
-# test_domains = ["csob-bankapanka.cz", "ajvjaifmoneta.cz", "grafr-unicredit.cz", "komercnifrag-banka.cz", "slspawfe.sk", "www.site.monetae.io"]
+test_domains = ["csob-bankapanka.cz", "ajvjaifmoneta.cz", "grafr-unicredit.cz", "komercnifrag-banka.cz", "slspawfe.sk", "www.site.monetae.io"]
 # test_domains = ["monetamarkets-vietnam.com", "slspackaging.com", "monetaryaccounts.site", "monetary-policy-comm.finbitsindia.com", "www.site.monetae.io"]
-test_domains = ["webmail.naturkunde-museum-coburg.de"]
+# test_domains = ["webmail.naturkunde-museum-coburg.de"]
 TEST = False
 
 
 def main():
-    if MODE == "default":
+    if MODE == "domain":
+        rabbitmq_domain_consumer: RabbitMQStreamHandler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_STRING_CHECKER_CONNECTION_INFO)
+        rabbitmq_domain_consumer.setup_consumer()
+
+        rabbitmq_image_scrape_domain_producer: RabbitMQStreamHandler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_IMAGE_CHECKER_CONNECTION_INFO)
+        rabbitmq_image_scrape_domain_producer.setup_producer()
+
         logger.info(" [*] Waiting for messages. To exit press CTRL+C")
         logger.info(" [*] Processing messages from queue")
         counter = 0
@@ -118,77 +136,74 @@ def main():
                     break
                 logger.info(f"Processing domain: {domain}")
             else:
-                domain: str | None = rabbitmq_handler.receive_single_frame()
+                domain: str | None = rabbitmq_domain_consumer.receive_single_frame()
             if not domain:
+                logger.info("No domain received, waiting")
                 time.sleep(0.5)
                 continue
 
             counter += 1
             str_check_result_setting: SearchSetting = string_domain_handler.check(domain)
             if str_check_result_setting:
-                logger.info(f"Suspicious domain {domain} found for {str_check_result_setting.domain_base}, scraping started")
+                logger.info(f"Suspicious domain {domain} found for {str_check_result_setting.domain_base}, adding to database")
                 record: FlaggedData = FlaggedData(domain=domain, algorithm=CHECKER_ALGORITHM, search_setting_id=str_check_result_setting.id)
                 postgres_storage.add([record], persistent_session_id=main_loop_session_id)
 
                 # TODO: REWORK TO SEND to rabbitmq
-                if SCRAPING_ENABLED:
-                    try:
-                        success_image_handle = image_domain_handler.check(domain, record, str_check_result_setting, main_loop_session_id)
-                        logger.info(f"Images {'successfully' if success_image_handle else 'unsuccessfully'} scraped for {record.domain}")
-                    except (ConnectionError, SSLError, Timeout, RequestException) as err:
-                        logger.error(f"Connection error: {err}")
-                        postgres_storage.commit_persistent_session(main_loop_session_id)
-                    except Exception as err:
-                        logger.error(f"Unexpected error: {err}")
-                        record.note = "Unexpected error thrown on scraping"
-                        postgres_storage.commit_persistent_session(main_loop_session_id)
-
-                logger.info(f"Domain {domain} processed, result for: {str_check_result_setting.domain_base}")
+                rabbitmq_image_scrape_domain_producer.send(domain)
+                logger.info(f"Domain {domain} processed, result for: {str_check_result_setting.domain_base}, sent to image scrape")
 
             if counter % 50 == 0:
                 logger.info(f"Processed {counter} domains")
 
-    elif MODE == "periodic":
-        logger.info(" [*] Periodic mode")
-        logger.info(" [*] Processing unfinished database records")
+    elif MODE == "image-scrape":
+        rabbitmq_image_scrape_domain_consumer: RabbitMQStreamHandler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_IMAGE_CHECKER_CONNECTION_INFO)
+        rabbitmq_image_scrape_domain_consumer.setup_consumer()
+
+        logger.info(" [*] Image-scrape mode")
+        logger.info(" [*] Processing domains from scrape queue")
+        counter: int = 0
         while True:
             # TODO: REWORK INTO RECEIVING FROM RABBITMQ
-            unscraped_flagged_data = postgres_storage.get(FlaggedData, persistent_session_id=main_loop_session_id, note=NOTE_DB_MAPPING["SCRAPE_ERROR"])
-            filtered_flagged_data = [record for record in unscraped_flagged_data if "*" not in record.domain]
+            if TEST:  # noqa: SIM108
+                domain = test_domains[counter % len(test_domains)]
+                if counter == len(test_domains):
+                    break
+                logger.info(f"Processing domain: {domain}")
+            else:
+                domain: str | None = rabbitmq_image_scrape_domain_consumer.receive_single_frame()
+            if not domain:
+                logger.info("No domain received, waiting")
+                time.sleep(0.5)
+                continue
 
-            logger.info(f"Found {len(filtered_flagged_data)} unscraped records")
+            logger.info(f"Processing domain: {domain}")
 
-            for record in filtered_flagged_data:
-                try:
-                    success_image_handle: bool = image_domain_handler.check_retry_domain(record, main_loop_session_id)
+            # records: list[FlaggedData] = postgres_storage.get(FlaggedData, domain=domain)
+            # if not records:
+            #     logger.info(f"Domain {domain} not found in database")
+            #     continue
+            #
+            # if len(records) > 1:
+            #     logger.error(f"Multiple records found for domain {domain}")
+            #     continue
+            #
+            # record: FlaggedData = records[0]
+            # str_check_result_setting: SearchSetting = record.search_setting
+            # try:
+            #     success_image_handle: bool = image_domain_handler.check(domain, record, str_check_result_setting, main_loop_session_id)
+            #     logger.info(f"Images {'successfully' if success_image_handle else 'unsuccessfully'} scraped for {record.domain}")
+            # except (ConnectionError, SSLError, Timeout, RequestException) as err:
+            #     logger.error(f"Connection error: {err}")
+            #     postgres_storage.commit_persistent_session(main_loop_session_id)
+            # except Exception as err:
+            #     logger.error(f"Unexpected error: {err}")
+            #     record.note = "Unexpected error thrown on scraping"
+            #     postgres_storage.commit_persistent_session(main_loop_session_id)
 
-                    logger.info(f"Images {'successfully' if success_image_handle else 'unsuccessfully'} scraped for {record.domain}")
-                except Exception as err:  # noqa: PERF203
-                    logger.error(f"Unexpected error: {err}")
-                    record.note = "Unexpected error thrown on scraping"
-                    postgres_storage.commit_persistent_session(main_loop_session_id)
-
-            unscraped_images = postgres_storage.get(Image, persistent_session_id=main_loop_session_id, note=NOTE_DB_MAPPING["IMG_DOWNLOAD_ERROR"])
-            logger.info(f"Found {len(unscraped_images)} unscraped images")
-
-            # divide images to lists with key base on flag_id as a dict key
-            unscraped_images_dict = {}
-            for image in unscraped_images:
-                if image.flag_id not in unscraped_images_dict:
-                    unscraped_images_dict[image.flag_id] = []
-                unscraped_images_dict[image.flag_id].append(image)
-
-            for flag_id, images in unscraped_images_dict.items():
-                try:
-                    flagged_data = postgres_storage.get(FlaggedData, persistent_session_id=main_loop_session_id, id=flag_id)[0]
-                    success_retry_image_scrape = image_domain_handler.check_retry_download_images(flagged_data, images, main_loop_session_id)
-                    logger.info(f"Images {'successfully' if success_retry_image_scrape else 'unsuccessfully'} scraped for {images[0].flagged_data.domain}")
-                except Exception as err:  # noqa: PERF203
-                    logger.error(f"Unexpected error: {err}")
-                    postgres_storage.commit_persistent_session(main_loop_session_id)
-
-            time.sleep(60 * 60 * 24)  # 24 hours
-
+            counter += 1
+            if counter % 50 == 0:
+                logger.info(f"Processed {counter} domains")
     else:
         logger.error("Invalid mode")
 
