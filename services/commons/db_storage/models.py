@@ -56,7 +56,6 @@ class Image(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     origin: Mapped[str] = mapped_column(String, nullable=False, comment="scraped or logo")
-    flag_id: Mapped[int] = mapped_column(ForeignKey("flagged_data.id"), nullable=True)
     hash: Mapped[str] = mapped_column(String, nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String)
@@ -64,9 +63,10 @@ class Image(Base):
     format: Mapped[str] = mapped_column(String, nullable=True)
     created: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     note: Mapped[Optional[str]] = mapped_column(String)
+    scan_history_id: Mapped[int] = mapped_column(ForeignKey("scan_history.id"), nullable=True)
 
-    flagged_data = relationship("FlaggedData", foreign_keys=[flag_id], back_populates="images")
-    logo_setting = relationship("SearchSetting", foreign_keys=[SearchSetting.logo_id], back_populates="logo")
+    scan_history = relationship("ScanHistory", back_populates="images", foreign_keys=[scan_history_id])
+    logo_setting = relationship("SearchSetting", back_populates="logo", uselist=False)
 
 
 class FlaggedData(Base):
@@ -77,15 +77,35 @@ class FlaggedData(Base):
     search_setting_id: Mapped[int] = mapped_column(ForeignKey("search_settings.id"), nullable=False)
     algorithm: Mapped[str] = mapped_column(String, nullable=False)
     flagged_time: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    images_scraped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    suspected_logo_found: Mapped[int] = mapped_column(ForeignKey("images.id"), nullable=True)
-    note: Mapped[Optional[str]] = mapped_column(String)
 
+    note: Mapped[Optional[str]] = mapped_column(String)
     last_scraped: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # TODO: THINGS TO ADD, think about periodic scanning
+    scan_frequency: Mapped[str] = mapped_column(String, nullable=True, comment="e.g., 'daily', 'weekly'")
+    next_scheduled_scan: Mapped[DateTime] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="active", nullable=False)
+    times_scanned: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_status_change: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    # TODO: END
 
     # Relationship to SearchSetting
     search_setting = relationship("SearchSetting", back_populates="flagged_data", lazy="noload")
+    scan_histories = relationship("ScanHistory", back_populates="flagged_data", lazy="noload")
 
-    # images = relationship("Image", back_populates="flagged_data")
-    images = relationship("Image", foreign_keys=[Image.flag_id], back_populates="flagged_data")
-    suspected_logo = relationship("Image", foreign_keys=[suspected_logo_found], post_update=True)
+
+class ScanHistory(Base):
+    __tablename__ = "scan_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    flagged_data_id: Mapped[int] = mapped_column(ForeignKey("flagged_data.id"), nullable=False)
+    scan_time: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(String)
+    images_scraped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # TODO: Moved to ScanHistory
+    suspected_logo_found: Mapped[int] = mapped_column(ForeignKey("images.id"), nullable=True)  # TODO: Moved to ScanHistory
+
+    # Relationship
+    flagged_data = relationship("FlaggedData", back_populates="scan_histories")
+    images = relationship("Image", back_populates="scan_history", foreign_keys="[Image.scan_history_id]")
+    suspected_logo = relationship("Image", foreign_keys=[suspected_logo_found], post_update=True, overlaps="images,scan_history")
