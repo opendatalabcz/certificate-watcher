@@ -12,6 +12,7 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
         self.queue_name = None
         self.connection = None
         self.channel = None
+        self.routing_key = self.connection_parameters.routing_key
 
     def _close_connections(self):
         if self.channel:
@@ -21,7 +22,7 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
         self.is_active = False
 
     def send(self, data):
-        self.channel.basic_publish(exchange=self.exchange_name, routing_key="", body=data)
+        self.channel.basic_publish(exchange=self.exchange_name, routing_key=self.routing_key, body=data)
 
     def receive_single_frame(self):
         if not self.is_active or self.connection.is_closed or self.channel.is_closed:
@@ -44,13 +45,13 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
             )
         )
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange=self.exchange_name, exchange_type="fanout")
+        self.channel.exchange_declare(exchange=self.exchange_name, exchange_type="direct")
 
-    def _setup_producer(self):
+    def setup_producer(self):
         self._connect()
         self.is_active = True
 
-    def _setup_consumer(self):
+    def setup_consumer(self):
         self._connect()
 
         queue_name = self.connection_parameters.queue
@@ -62,13 +63,16 @@ class RabbitMQStreamHandler(AbstractStreamHandler):
             self._connect()
             self.channel.queue_declare(queue=queue_name, exclusive=False)
         self.queue_name = queue_name
-        self.channel.queue_bind(exchange=self.exchange_name, queue=self.queue_name)
+        self.channel.queue_bind(exchange=self.exchange_name, queue=self.queue_name, routing_key=self.routing_key)
 
         self.is_active = True
 
     def _reconnect(self):
         self._close_connections()
-        self._connect()
+        if self.queue_name:
+            self.setup_consumer()
+        else:
+            self.setup_producer()
 
     def __del__(self):
         self._close_connections()

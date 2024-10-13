@@ -10,6 +10,7 @@ class RabbitMQConnectionInfo:
     virtualhost: str = None
     exchange: str = None
     queue: str = ""
+    routing_key: str = ""
     connect_timeout: int = 4
 
     def get_connection_args(self):
