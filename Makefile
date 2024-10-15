@@ -6,6 +6,7 @@ build-dev:
 	@cd services/certificate-processor && make build
 	@cd services/settings-setup && make build
 	@cd services/backend && make build
+	@cd services/periodic-scrape-checker && make build
 
 build:
 	@echo "Building services..."
