@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta
 
 from sqlalchemy import or_
-from src.commons.db_storage.models import FlaggedData, ScanHistory
+from src.commons.db_storage.models import FlaggedData
 from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
 from src.commons.logging.app_logger import AppLogger
@@ -65,6 +65,8 @@ postgres_storage = SqlAlchemyStorage(database_connection_info=DATABASE_CONNECTIO
 rabbitmq_producer = RabbitMQStreamHandler(connection_parameters=RABBITMQ_IMAGE_CHECKER_CONNECTION_INFO)
 rabbitmq_producer.setup_producer()
 
+SLEEP_PERIOD = 60 * 60 * 24  # Sleep for 1 day
+
 
 def main():
     logger.info(" [*] Starting periodic scrape checker service")
@@ -72,79 +74,33 @@ def main():
     while True:
         # Start a new session
         session_id = postgres_storage.get_persistent_session_id("flagged-data-processor-session")
-        session = postgres_storage.get_session(session_id)
+        session = postgres_storage.get_persistent_session(session_id)
         # Get the current time
         now = datetime.now()
+        scraped_before = now - timedelta(days=5)
 
-        # Fetch FlaggedData records that need to be processed
         flagged_data_list = (
             session.query(FlaggedData)
-            .filter(or_(FlaggedData.next_scheduled_scan <= now, FlaggedData.next_scheduled_scan == None), FlaggedData.status == "active")  # noqa: E711
+            .filter(FlaggedData.status == "active", or_(FlaggedData.last_scraped == None, FlaggedData.last_scraped <= scraped_before))  # noqa: E711
             .all()
         )
-
         if not flagged_data_list:
             logger.info("No flagged data to process, sleeping...")
             postgres_storage.close_persistent_session(session_id)
-            time.sleep(60)  # Sleep for 1 minute before checking again
+            time.sleep(SLEEP_PERIOD)
             continue
 
+        logger.info(f"Processing {len(flagged_data_list)} flagged data entries")
         for flagged_data in flagged_data_list:
             domain = flagged_data.domain
-
-            # Determine the last scan time
-            last_scan = session.query(ScanHistory).filter(ScanHistory.flagged_data_id == flagged_data.id).order_by(ScanHistory.scan_time.desc()).first()
-
-            # Determine if we should scrape based on scan frequency
-            should_scrape = False
-            if flagged_data.scan_frequency:
-                if last_scan:
-                    time_since_last_scan = now - last_scan.scan_time
-                    if flagged_data.scan_frequency == "daily":
-                        should_scrape = time_since_last_scan >= timedelta(days=1)
-                    elif flagged_data.scan_frequency == "weekly":
-                        should_scrape = time_since_last_scan >= timedelta(weeks=1)
-                    else:
-                        # Default to scraping if frequency is unrecognized
-                        should_scrape = True
-                else:
-                    # If never scanned before, we should scrape
-                    should_scrape = True
-            else:
-                # If no scan frequency is set, decide default behavior
-                should_scrape = True
-
-            if should_scrape:
-                # Send to the appropriate queue
-                rabbitmq_producer.send(domain)
-                logger.info(f"Queued domain {domain} for scraping")
-
-                # Update next_scheduled_scan based on scan_frequency
-                if flagged_data.scan_frequency:
-                    if flagged_data.scan_frequency == "daily":
-                        flagged_data.next_scheduled_scan = now + timedelta(days=1)
-                    elif flagged_data.scan_frequency == "weekly":
-                        flagged_data.next_scheduled_scan = now + timedelta(weeks=1)
-                    else:
-                        flagged_data.next_scheduled_scan = None
-                else:
-                    # Default to None to not schedule again
-                    flagged_data.next_scheduled_scan = None
-
-                # Update times_scanned
-                flagged_data.times_scanned += 1
-
-                # Update last_status_change
-                flagged_data.last_status_change = now
-
-                # Commit changes
-                postgres_storage.commit_persistent_session(session_id)
+            rabbitmq_producer.send(domain)
 
         # Close the session
         postgres_storage.close_persistent_session(session_id)
 
         # Sleep for some time before next iteration
-        time.sleep(60)  # Sleep for 1 minute
+        logger.info("Loop complete, sleeping...")
+        time.sleep(SLEEP_PERIOD)
 
 
 if __name__ == "__main__":
