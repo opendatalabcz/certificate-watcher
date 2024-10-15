@@ -1,12 +1,15 @@
 import os
+from typing import Type, TypeVar
 
 import psycopg2
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from .abstract_storage import AbstractStorage
 from .models import Base
 from .utils import PostgreSQLConnectionInfo
+
+model_base = TypeVar("model_base", bound=Base)
 
 
 class PostgresStorage(AbstractStorage):
@@ -45,7 +48,7 @@ class PostgresStorage(AbstractStorage):
                 self.commit()
         except (psycopg2.OperationalError, psycopg2.InterfaceError, psycopg2.InternalError) as e:
             self.logger.error(f"Lost PostgreSQL connection, sick of it => Goodbye! {e}")
-            os._exit(3)
+            os.exit(3)
         except psycopg2.Error as e:
             self.rollback()
             self.logger.error(f"Postgres error: {e}, query:{query}")
@@ -58,7 +61,7 @@ class SqlAlchemyStorage(AbstractStorage):
         self.database_connection_info = database_connection_info
 
         self.engine = self.__create_connection_engine(self.__create_connection_string(self.database_connection_info))
-        self.persistent_sessions = {}
+        self.persistent_sessions: dict[str, Session] = {}
         self.__init_tables()
 
     @staticmethod
@@ -92,10 +95,10 @@ class SqlAlchemyStorage(AbstractStorage):
     def __init_tables(self):
         Base.metadata.create_all(self.engine)
 
-    def get_session(self):
+    def get_session(self) -> Session:
         return sessionmaker(bind=self.engine)()
 
-    def get_persistent_session_id(self, session_name):
+    def get_persistent_session_id(self, session_name) -> str:
         if session_name not in self.persistent_sessions:
             self.persistent_sessions[session_name] = self.get_session()
 
@@ -104,7 +107,7 @@ class SqlAlchemyStorage(AbstractStorage):
     def commit_persistent_session(self, session_name):
         self.get_persistent_session(session_name).commit()
 
-    def get_persistent_session(self, session_name):
+    def get_persistent_session(self, session_name) -> Session:
         if session_name not in self.persistent_sessions:
             raise ValueError(f"Persistent session with id '{session_name}' does not exist")
         return self.persistent_sessions[session_name]
@@ -114,7 +117,7 @@ class SqlAlchemyStorage(AbstractStorage):
             self.persistent_sessions[session_name].close()
             del self.persistent_sessions[session_name]
 
-    def get(self, model, persistent_session_id=None, **kwargs):
+    def get(self, model: Type[model_base], persistent_session_id: str = None, filters: list = None, **kwargs) -> list:
         if persistent_session_id and persistent_session_id not in self.persistent_sessions:
             raise ValueError(f"Persistent session with id '{persistent_session_id}' does not exist")
 
@@ -122,13 +125,18 @@ class SqlAlchemyStorage(AbstractStorage):
         #     return session.query(model).filter_by(**kwargs).all()
 
         session = self.persistent_sessions[persistent_session_id] if persistent_session_id else self.get_session()
-        result = session.query(model).filter_by(**kwargs).all()
+        query = session.query(model)
+        if kwargs:
+            query = query.filter_by(**kwargs)
+        if filters:
+            query = query.filter(*filters)
+        result: list[model_base] = query.all()
         if not persistent_session_id:
             session.close()
 
         return result
 
-    def add(self, items: list, persistent_session_id=None):
+    def add(self, items: list[model_base], persistent_session_id=None):
         if persistent_session_id and persistent_session_id not in self.persistent_sessions:
             raise ValueError(f"Persistent session with id '{persistent_session_id}' does not exist")
 
