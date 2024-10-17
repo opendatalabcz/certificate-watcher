@@ -65,7 +65,10 @@ postgres_storage = SqlAlchemyStorage(database_connection_info=DATABASE_CONNECTIO
 rabbitmq_producer = RabbitMQStreamHandler(connection_parameters=RABBITMQ_IMAGE_CHECKER_CONNECTION_INFO)
 rabbitmq_producer.setup_producer()
 
-SLEEP_PERIOD = 60 * 60 * 24  # Sleep for 1 day
+SLEEP_PERIOD = 60 * 60 * 24 * 5  # Sleep for 1 day
+SCRAPED_BEFORE_DELTA = timedelta(days=5)
+# SLEEP_PERIOD = 60 * 5  # Sleep for 5 minutes
+# SCRAPED_BEFORE_DELTA = timedelta(minutes=5)
 
 
 def main():
@@ -77,7 +80,7 @@ def main():
         session = postgres_storage.get_persistent_session(session_id)
         # Get the current time
         now = datetime.now()
-        scraped_before = now - timedelta(days=5)
+        scraped_before = now - SCRAPED_BEFORE_DELTA
 
         flagged_data_list = (
             session.query(FlaggedData)
@@ -92,6 +95,7 @@ def main():
 
         logger.info(f"Processing {len(flagged_data_list)} flagged data entries")
         for flagged_data in flagged_data_list:
+            logger.info(f"Flagged data: {flagged_data.domain}")
             domain = flagged_data.domain
             rabbitmq_producer.send(domain)
 
