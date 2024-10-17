@@ -3,6 +3,8 @@ import optparse
 import os
 import sys
 import time
+from asyncio import Timeout
+from ssl import SSLError
 
 from src.commons.db_storage.models import FlaggedData, SearchSetting
 from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
@@ -22,7 +24,7 @@ parser.add_option("-c", "--config-file", metavar="FILENAME", type=str, help="Con
 parser.add_option("-e", "--environment", metavar="NAME", type=str, help="Name of the environment (for loading config)")
 (args, _) = parser.parse_args()
 
-AppLogger.setup_logging("certificate-processor")
+AppLogger.setup_logging(f"certificate-processor-{os.environ.get('MODE', 'domain')}")
 logger = AppLogger.get_logger()
 
 if not args.config_file:
@@ -163,6 +165,7 @@ def main():
         logger.info(" [*] Image-scrape mode")
         logger.info(" [*] Processing domains from scrape queue")
         counter: int = 0
+        # main_loop_session = postgres_storage.get_persistent_session(main_loop_session_id)
         while True:
             # TODO: REWORK INTO RECEIVING FROM RABBITMQ
             if TEST:  # noqa: SIM108
@@ -179,27 +182,28 @@ def main():
 
             logger.info(f"Processing domain: {domain}")
 
-            # records: list[FlaggedData] = postgres_storage.get(FlaggedData, domain=domain)
-            # if not records:
-            #     logger.info(f"Domain {domain} not found in database")
-            #     continue
-            #
-            # if len(records) > 1:
-            #     logger.error(f"Multiple records found for domain {domain}")
-            #     continue
-            #
-            # record: FlaggedData = records[0]
-            # str_check_result_setting: SearchSetting = record.search_setting
-            # try:
-            #     success_image_handle: bool = image_domain_handler.check(domain, record, str_check_result_setting, main_loop_session_id)
-            #     logger.info(f"Images {'successfully' if success_image_handle else 'unsuccessfully'} scraped for {record.domain}")
-            # except (ConnectionError, SSLError, Timeout, RequestException) as err:
-            #     logger.error(f"Connection error: {err}")
-            #     postgres_storage.commit_persistent_session(main_loop_session_id)
-            # except Exception as err:
-            #     logger.error(f"Unexpected error: {err}")
-            #     record.note = "Unexpected error thrown on scraping"
-            #     postgres_storage.commit_persistent_session(main_loop_session_id)
+            records: list[FlaggedData] = postgres_storage.get(FlaggedData, domain=domain)
+            if not records:
+                logger.error(f"Domain {domain} not found in database")
+                continue
+
+            if len(records) > 1:
+                logger.warning(f"Multiple records found for domain {domain}")
+
+            record: FlaggedData = records[0]
+            str_check_result_setting: SearchSetting = postgres_storage.get(
+                SearchSetting, persistent_session_id=main_loop_session_id, id=record.search_setting_id
+            )[0]
+            try:
+                success_image_handle: bool = image_domain_handler.check(domain, record, str_check_result_setting, main_loop_session_id)
+                logger.info(f"Images {'successfully' if success_image_handle else 'unsuccessfully'} scraped for {record.domain}")
+            except (ConnectionError, SSLError, Timeout) as err:
+                logger.error(f"Connection error: {err}")
+                postgres_storage.commit_persistent_session(main_loop_session_id)
+            except Exception as err:
+                logger.error(f"Unexpected error: {err}")
+                record.note = "Unexpected error thrown on scraping"
+                postgres_storage.commit_persistent_session(main_loop_session_id)
 
             counter += 1
             if counter % 50 == 0:
