@@ -14,25 +14,25 @@
     {
         "domain_base": "reiffeisen",
         "tld": "cz",
-        "logo": null,
+        "logo": "images/reiffeisen.png",
         "user": "testuser"
     },
     {
         "domain_base": "unicredit",
         "tld": "cz",
-        "logo": null,
+        "logo": "images/unicredit.png",
         "user": "testuser"
     },
     {
         "domain_base": "komercni-banka",
         "tld": "cz",
-        "logo": null,
+        "logo": "images/komercni-banka.png",
         "user": "testuser"
     },
     {
         "domain_base": "slsp",
         "tld": "sk",
-        "logo": null,
+        "logo": "images/slsp.png",
         "user": "testuser2"
     }
 ]
