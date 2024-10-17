@@ -18,7 +18,6 @@ x-defaults:
       context: "services/certificate-processor"
     environment:
       <<: [*postgres-env-default, *rabbitmq-env-default]
-      RABBITMQ_QUEUE: "cert-processor-default"
       ALGORITHM: "simple"
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -85,14 +84,35 @@ services:
     depends_on:
       - rabbitmq
 
-  certificate-processor-simple:
+  certificate-processor-domain-str-simple:
     <<: *certificate-processor-default
     deploy:
-      replicas: 2
+      replicas: 1
     environment:
       <<: [*postgres-env-base, *rabbitmq-env-base]
       ALGORITHM: "simple"
-      RABBITMQ_QUEUE: "cert-processor-simple"
+      MODE: "domain"
+
+  certificate-processor-domain-images:
+    <<: *certificate-processor-default
+    deploy:
+      replicas: 3
+    environment:
+      <<: [ *postgres-env-base, *rabbitmq-env-base ]
+      MODE: "image-scrape"
+
+  periodic-scrape-checker:
+    container_name: periodic-scrape-checker
+    build:
+      context: "services/periodic-scrape-checker"
+    environment:
+      <<: [ *postgres-env-base, *rabbitmq-env-base ]
+    volumes:
+      - "${PROJECT_PATH}/config/:/config/:ro"
+      - "${PROJECT_PATH}/services/commons/:/app/src/commons/:ro"
+    depends_on:
+      - postgres
+      - rabbitmq
 
 #  certificate-processor-levensh:
 #    <<: *certificate-processor-default
