@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, HttpUrl
 
-from ..commons.db_storage.models import FlaggedData, SearchSetting
+from ..commons.db_storage.models import FlaggedData, Image, ScanHistory, SearchSetting
 
 
 class UserCreate(BaseModel):
@@ -48,6 +48,42 @@ class ImageDetail(BaseModel):
     created: datetime
     note: Optional[str]
 
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_orm_instance(cls, image: "Image") -> "ImageDetail":
+        return cls(
+            id=image.id,
+            name=image.name,
+            image_url=image.image_url,
+            local_path=image.local_path,
+            format=image.format,
+            created=image.created,
+            note=image.note,
+        )
+
+
+class ScanHistoryData(BaseModel):
+    id: int
+    scan_time: datetime
+    images_scraped: bool
+    notes: Optional[str]
+    images: List[ImageDetail]
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_orm_instance(cls, scan_history: "ScanHistory") -> "ScanHistoryData":
+        return cls(
+            id=scan_history.id,
+            scan_time=scan_history.scan_time,
+            images_scraped=scan_history.images_scraped,
+            notes=scan_history.notes,
+            images=[ImageDetail.from_orm_instance(image) for image in scan_history.images],
+        )
+
 
 class FlaggedDataListDetail(BaseModel):
     id: int
@@ -78,10 +114,23 @@ class FlaggedDataDetail(BaseModel):
     domain: str
     algorithm: str
     flagged_time: datetime
-    successfully_scraped: bool
-    suspected_logo: Optional[str]  # Assuming this is a URL or None
-    scraped_images_count: int
-    images: List[ImageDetail]
+    scan_history: List[ScanHistoryData]
+
+    @classmethod
+    def from_orm_instance(cls, flagged_data: "FlaggedData") -> "FlaggedDataDetail":
+        logo = None
+        if flagged_data.search_setting.logo:
+            logo = ImageDetail.from_orm_instance(flagged_data.search_setting.logo)
+
+        return cls(
+            id=flagged_data.id,
+            searched_domain=flagged_data.search_setting.domain_base,
+            searched_logo=logo,
+            domain=flagged_data.domain,
+            algorithm=flagged_data.algorithm,
+            flagged_time=flagged_data.flagged_time,
+            scan_history=[ScanHistoryData.from_orm_instance(sh) for sh in flagged_data.scan_histories],
+        )
 
 
 class SearchSettingDetail(BaseModel):
