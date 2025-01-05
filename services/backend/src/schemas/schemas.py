@@ -152,7 +152,18 @@ class SearchSettingDetail(BaseModel):
             id=search_setting.id,
             owner=search_setting.owner.username,
             domain_base=search_setting.domain_base,
+            logo=ImageDetail.from_orm_instance(search_setting.logo) if search_setting.logo else None,
             tld=search_setting.tld,
             additional_settings=search_setting.additional_settings,
             flagged_data=[FlaggedDataListDetail.from_orm_instance(fd) for fd in search_setting.flagged_data],
         )
+
+
+class SearchSettingCreate(BaseModel):
+    domain_base: str
+    tld: str
+    additional_settings: Optional[dict] = None
+    logo_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
