@@ -2,7 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..authentication.token import get_current_user
 from ..commons.db_storage.models import FlaggedData, SearchSetting, User
@@ -52,7 +52,7 @@ def read_search_settings(db: Session = Depends(get_db), current_user: User = Dep
 
 @router.get("/search-settings/{setting_id}/", response_model=SearchSettingDetail)
 def get_search_setting_detail(setting_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):  # noqa: B008
-    search_setting = db.query(SearchSetting).filter(SearchSetting.id == setting_id).first()
+    search_setting = db.query(SearchSetting).filter(SearchSetting.id == setting_id).options(joinedload(SearchSetting.flagged_data)).first()
 
     if not search_setting:
         raise HTTPException(status_code=404, detail="Search setting not found")
@@ -60,24 +60,4 @@ def get_search_setting_detail(setting_id: int, db: Session = Depends(get_db), cu
     if not current_user.is_admin and current_user.id != search_setting.owner_id:
         raise HTTPException(status_code=403, detail="Not authorized to view this setting")
 
-    flagged_data_list = db.query(FlaggedData).filter(FlaggedData.search_setting_id == setting_id).all()
-
-    return {
-        "id": search_setting.id,
-        "owner": search_setting.owner.username,
-        "domain_base": search_setting.domain_base,
-        "tld": search_setting.tld,
-        "additional_settings": search_setting.additional_settings,
-        "flagged_data": [
-            {
-                "id": fd.id,
-                "domain": fd.domain,
-                "algorithm": fd.algorithm,
-                "flagged_time": fd.flagged_time,
-                "successfully_scraped": fd.images_scraped,
-                "suspected_logo": fd.suspected_logo.image_url if fd.suspected_logo else None,
-                "scraped_images_count": len(fd.images),
-            }
-            for fd in flagged_data_list
-        ],
-    }
+    return SearchSettingDetail.from_orm_instance(search_setting)

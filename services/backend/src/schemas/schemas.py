@@ -3,6 +3,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, HttpUrl
 
+from ..commons.db_storage.models import FlaggedData, SearchSetting
+
 
 class UserCreate(BaseModel):
     username: str
@@ -52,9 +54,21 @@ class FlaggedDataListDetail(BaseModel):
     domain: str
     algorithm: str
     flagged_time: datetime
-    successfully_scraped: bool
-    suspected_logo: Optional[HttpUrl]
-    scraped_images_count: int
+    # successfully_scraped: bool
+    # suspected_logo: Optional[HttpUrl]
+    # scraped_images_count: int
+
+    class Config:
+        orm_mode = True
+
+    @classmethod
+    def from_orm_instance(cls, flagged_data: "FlaggedData") -> "FlaggedDataListDetail":
+        return cls(
+            id=flagged_data.id,
+            domain=flagged_data.domain,
+            algorithm=flagged_data.algorithm,
+            flagged_time=flagged_data.flagged_time,
+        )
 
 
 class FlaggedDataDetail(BaseModel):
@@ -80,3 +94,15 @@ class SearchSettingDetail(BaseModel):
 
     class Config:
         from_attributes = True
+        orm_mode = True
+
+    @classmethod
+    def from_orm_instance(cls, search_setting: "SearchSetting") -> "SearchSettingDetail":
+        return cls(
+            id=search_setting.id,
+            owner=search_setting.owner.username,
+            domain_base=search_setting.domain_base,
+            tld=search_setting.tld,
+            additional_settings=search_setting.additional_settings,
+            flagged_data=[FlaggedDataListDetail.from_orm_instance(fd) for fd in search_setting.flagged_data],
+        )
