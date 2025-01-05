@@ -138,8 +138,9 @@ class SearchSettingDetail(BaseModel):
     owner: str
     domain_base: str
     tld: str
-    additional_settings: Optional[dict]
-    flagged_data: List[FlaggedDataListDetail]
+    logo: ImageDetail | None
+    additional_settings: dict | None
+    flagged_data: list[FlaggedDataListDetail]
 
     class Config:
         from_attributes = True
