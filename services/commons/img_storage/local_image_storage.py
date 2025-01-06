@@ -42,8 +42,12 @@ class LocalImageStorage(AbstractImageStorage):
         with open(path, "rb") as f:
             return f.read()
 
-    def delete(self, path: str):
-        os.remove(f"{self.storage_path}/{path}")
+    def delete(self, path: str, is_dir: bool = False):
+        full_path = os.path.join(self.storage_path, path)
+        if is_dir:
+            os.rmdir(full_path)
+        else:
+            os.remove(full_path)
 
     def clear_directory_keep(self, directory: str):
         # Iterate over all the entries in the directory
