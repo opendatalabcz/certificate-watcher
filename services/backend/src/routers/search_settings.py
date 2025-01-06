@@ -65,7 +65,12 @@ def get_search_setting_detail(setting_id: int, db: Session = Depends(get_db), cu
     if not current_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not authenticated")
 
-    search_setting = db.query(SearchSetting).filter(SearchSetting.id == setting_id).options(joinedload(SearchSetting.flagged_data)).first()
+    search_setting = (
+        db.query(SearchSetting)
+        .filter(SearchSetting.id == setting_id)
+        .options(joinedload(SearchSetting.flagged_data).joinedload(FlaggedData.scan_histories).joinedload(ScanHistory.images))
+        .first()
+    )
 
     if not search_setting:
         raise HTTPException(status_code=404, detail="Search setting not found")
