@@ -1,9 +1,9 @@
 import React from 'react';
-import useImageUrls from '../images/useImageUrls';
+import useImageUrls from './useImageUrls';
 
 const ImageDetailsTable = ({ images }) => {
     const imageUrls = useImageUrls(images);
-
+    console.log(imageUrls);
     return (
         <table className="table table-dark table-striped">
             <thead>
@@ -27,7 +27,7 @@ const ImageDetailsTable = ({ images }) => {
                                 <img 
                                     src={imageUrls[img.id] || "path_to_default_image.jpg"}  // Use the blob URL or a default image
                                     alt={img.name} 
-                                    style={{ width: "100px", height: "100px" }}
+                                    style={{ maxHeight: "100px", maxWidth: "150px", objectFit: "contain" }}
                                 />
                             ) : "No local image"}
                         </td>

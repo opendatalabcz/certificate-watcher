@@ -11,6 +11,7 @@ import AdminRoute from './components/admin/AdminRoute';
 import AdminDashboard from './components/admin/AdminDashboard';
 import SearchSettingDetailPage from './components/searchSetting/SearchSettingDetailPage';
 import FlaggedDataDetailPage from './components/flaggedData/FlaggedDataDetailPage';
+import CreateSearchSettingPage from './components/searchSetting/CreateSearchSettingPage';
 
 
 function App() {
@@ -29,6 +30,9 @@ function App() {
           </Route>
           <Route path="/flagged-data/:id/" element={<PrivateRoute />}>
             <Route index element={<FlaggedDataDetailPage />} />
+          </Route>
+          <Route path="/search-settings/create" element={<PrivateRoute />}>
+            <Route index element={<CreateSearchSettingPage />} />
           </Route>
           <Route path="/admin" element={<AdminRoute />}>
             <Route index element={<AdminDashboard />} />

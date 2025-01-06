@@ -3,7 +3,7 @@ import API from '../api/axios';
 import { useParams } from 'react-router-dom';
 
 import FlaggedDataCard from './FlaggedDataCard';
-import ImageDetailsTable from './ImageDetailsTable';
+import ScanHistoryList from '../scanHistory/ScanHistoryList';
 
 const FlaggedDataDetailPage = () => {
     const { id: dataId } = useParams();
@@ -29,7 +29,7 @@ const FlaggedDataDetailPage = () => {
     return (
         <div className="container mt-4">
             <FlaggedDataCard data={dataDetail} />
-            <ImageDetailsTable images={dataDetail.images} />
+            <ScanHistoryList scanHistories={dataDetail.scan_history} />
         </div>
     );
 };

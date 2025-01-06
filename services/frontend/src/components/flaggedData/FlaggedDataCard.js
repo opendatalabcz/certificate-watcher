@@ -1,13 +1,26 @@
-import React from 'react';
-import useImageUrls from '../images/useImageUrls';
+import React, { useEffect, useState } from 'react';
+import API from '../api/axios';
 
 const FlaggedDataCard = ({ data }) => {
-    // Prepare the logo for use in the useImageUrls hook
-    const logos = data.searched_logo ? [data.searched_logo] : [];
+    const [logoUrl, setLogoUrl] = useState(""); // State to store the fetched logo URL
 
-    // Get URLs for the logos
-    const logoUrls = useImageUrls(logos);
-    const logoUrl = logos.length > 0 ? logoUrls[logos[0].id] : '/path_to_default_logo.jpg';
+    useEffect(() => {
+        const fetchLogo = async () => {
+            if (data.searched_logo?.local_path) {
+                const imagePath = `/files/${encodeURIComponent(data.searched_logo.local_path)}/${encodeURIComponent(data.searched_logo.name)}.${encodeURIComponent(data.searched_logo.format.toLowerCase())}`;
+                try {
+                    const response = await API.get(imagePath, { responseType: "blob" });
+                    const blobUrl = URL.createObjectURL(response.data);
+                    setLogoUrl(blobUrl);
+                } catch (error) {
+                    console.error("Failed to fetch image:", imagePath, error);
+                    setLogoUrl(""); // Set to empty or a default placeholder
+                }
+            }
+        };
+
+        fetchLogo();
+    }, [data.searched_logo]);
 
     return (
         <div className="card bg-dark text-white mb-3">
@@ -17,13 +30,10 @@ const FlaggedDataCard = ({ data }) => {
             <div className="card-body">
                 <h5 className="card-title">Algorithm: {data.algorithm}</h5>
                 <p className="card-text">Flagged On: {new Date(data.flagged_time).toLocaleString()}</p>
-                <p className="card-text">Successfully Scraped: {data.successfully_scraped ? "Yes" : "No"}</p>
-                <p className="card-text">Suspected Logo URL: {data.suspected_logo || "None"}</p>
-                <p className="card-text">Searched Domain: {data.searched_domain || "Not specified"}</p>
                 {data.searched_logo && (
                     <div>
                         <h5>Searched Logo:</h5>
-                        <img src={logoUrl} alt="Searched Logo" style={{ width: "100px", height: "100px" }}/>
+                        <img src={logoUrl} alt="Searched Logo" style={{ maxHeight: "100px", maxWidth: "150px", objectFit: "contain" }}/>
                         <p>Logo Name: {data.searched_logo.name}</p>
                     </div>
                 )}

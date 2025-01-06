@@ -26,7 +26,7 @@ const SearchSettingDetailPage = () => {
     }
 
     return (
-        <div>
+        <div className="container mt-4">
             <SearchSettingDetailedCard setting={settingDetail} />
             <FlaggedDataList flaggedData={settingDetail.flagged_data} />
         </div>
