@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.commons.db_storage.postgres_storage import SqlAlchemyStorage
 from src.commons.db_storage.utils import PostgreSQLConnectionInfo
+from src.commons.img_storage.local_image_storage import LocalImageStorage
 from src.commons.logging.app_logger import AppLogger
 from src.placeholder.get_db import get_db
 from src.routers import auth, flagged_data, images, search_settings
@@ -49,7 +50,10 @@ except Exception as e:
     sys.exit(1)
 
 postgres_storage = SqlAlchemyStorage(database_connection_info=DATABASE_CONNECTION_INFO)
+image_storage = LocalImageStorage(LOCAL_IMAGE_STORAGE_PATH)
+
 app = FastAPI()
+app.state.image_storage = image_storage
 
 app.add_middleware(
     CORSMiddleware,
