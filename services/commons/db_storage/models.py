@@ -1,5 +1,3 @@
-from typing import Optional
-
 from passlib.context import CryptContext
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -39,9 +37,7 @@ class SearchSetting(Base):
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     domain_base: Mapped[str] = mapped_column(String, nullable=False, comment='Example: "reiffeisen"')
     tld: Mapped[str] = mapped_column(String, nullable=False, comment='Example: "cz"')
-    additional_settings: Mapped[Optional[JSON]] = mapped_column(
-        JSON, comment="To have possibility to add more than base settings if needs to be", nullable=True
-    )
+    additional_settings: Mapped[JSON | None] = mapped_column(JSON, comment="To have possibility to add more than base settings if needs to be", nullable=True)
     logo_id: Mapped[int] = mapped_column(ForeignKey("images.id"), nullable=True)
 
     owner: Mapped[User] = relationship("User", back_populates="search_settings")
@@ -58,11 +54,11 @@ class Image(Base):
     origin: Mapped[str] = mapped_column(String, nullable=False, comment="scraped or logo")
     hash: Mapped[str] = mapped_column(String, nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    image_url: Mapped[Optional[str]] = mapped_column(String)
+    image_url: Mapped[str | None] = mapped_column(String)
     local_path: Mapped[str] = mapped_column(String, nullable=True)
     format: Mapped[str] = mapped_column(String, nullable=True)
     created: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
-    note: Mapped[Optional[str]] = mapped_column(String)
+    note: Mapped[str | None] = mapped_column(String)
     scan_history_id: Mapped[int] = mapped_column(ForeignKey("scan_history.id"), nullable=True)
 
     scan_history = relationship("ScanHistory", back_populates="images", foreign_keys=[scan_history_id])
@@ -78,7 +74,7 @@ class FlaggedData(Base):
     algorithm: Mapped[str] = mapped_column(String, nullable=False)
     flagged_time: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
-    note: Mapped[Optional[str]] = mapped_column(String)
+    note: Mapped[str | None] = mapped_column(String)
     last_scraped: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # TODO: THINGS TO ADD, think about periodic scanning
@@ -101,9 +97,9 @@ class ScanHistory(Base):
     flagged_data_id: Mapped[int] = mapped_column(ForeignKey("flagged_data.id"), nullable=False)
     scan_time: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(String)
-    images_scraped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # TODO: Moved to ScanHistory
-    suspected_logo_found: Mapped[int] = mapped_column(ForeignKey("images.id"), nullable=True)  # TODO: Moved to ScanHistory
+    notes: Mapped[str | None] = mapped_column(String)
+    images_scraped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    suspected_logo_found: Mapped[int] = mapped_column(ForeignKey("images.id"), nullable=True)
 
     # Relationship
     flagged_data = relationship("FlaggedData", back_populates="scan_histories")
