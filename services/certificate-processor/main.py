@@ -48,6 +48,9 @@ try:
         queue=config.get("rabbitmq", "DOMAIN_STRING_PROMISC_QUEUE"),
     )
 
+    if os.environ.get("RABBITMQ_QUEUE", None):
+        RABBITMQ_STRING_CHECKER_CONNECTION_INFO.queue = os.environ.get("RABBITMQ_QUEUE")
+
     RABBITMQ_IMAGE_CHECKER_CONNECTION_INFO = RabbitMQConnectionInfo(
         hostname=config.get("rabbitmq", "hostname"),
         port=config.getint("rabbitmq", "port"),
@@ -151,9 +154,9 @@ def main():
                 record: FlaggedData = FlaggedData(domain=domain, algorithm=CHECKER_ALGORITHM, search_setting_id=str_check_result_setting.id)
                 postgres_storage.add([record], persistent_session_id=main_loop_session_id)
 
-                # TODO: REWORK TO SEND to rabbitmq
-                rabbitmq_image_scrape_domain_producer.send(domain)
-                logger.info(f"Domain {domain} processed, result for: {str_check_result_setting.domain_base}, sent to image scrape")
+                if SCRAPING_ENABLED:
+                    rabbitmq_image_scrape_domain_producer.send(domain)
+                    logger.info(f"Domain {domain} processed, result for: {str_check_result_setting.domain_base}, sent to image scrape")
 
             if counter % 50 == 0:
                 logger.info(f"Processed {counter} domains")
