@@ -8,11 +8,10 @@ from PIL import Image as PILImage
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from services.commons.utils.image import convert_image_to_rgb_with_white_bg
-
 from ..authentication.token import get_current_user
 from ..commons.db_storage.models import FlaggedData, Image, ScanHistory, SearchSetting, User
 from ..commons.hashing.hash_handler import ImageHashHandler
+from ..commons.utils.image import convert_image_to_rgb_with_white_bg
 from ..placeholder.get_db import get_db
 from ..schemas.schemas import SearchSettingCreate, SearchSettingDetail, SearchSettingOut
 
