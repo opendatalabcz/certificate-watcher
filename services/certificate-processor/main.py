@@ -114,12 +114,6 @@ image_domain_handler: ImageDomainHandler = ImageDomainHandler(
     config=domain_handler_config, postgres_storage=postgres_storage, image_storage=local_image_storage, webscraper=webscraper
 )
 
-# TODO: DELETE LATER
-test_domains = ["csob-bankapanka.cz", "ajvjaifmoneta.cz", "grafr-unicredit.cz", "komercnifrag-banka.cz", "slspawfe.sk", "www.site.monetae.io"]
-# test_domains = ["monetamarkets-vietnam.com", "slspackaging.com", "monetaryaccounts.site", "monetary-policy-comm.finbitsindia.com", "www.site.monetae.io"]
-# test_domains = ["webmail.naturkunde-museum-coburg.de"]
-TEST = False
-
 
 def main():
     if MODE == "domain":
@@ -134,14 +128,8 @@ def main():
         counter = 0
 
         while True:
-            # TODO: DELETE LATER
-            if TEST:  # noqa: SIM108
-                domain = test_domains[counter % len(test_domains)]
-                if counter == len(test_domains):
-                    break
-                logger.info(f"Processing domain: {domain}")
-            else:
-                domain: str | None = rabbitmq_domain_consumer.receive_single_frame()
+            domain: str | None = rabbitmq_domain_consumer.receive_single_frame()
+
             if not domain:
                 logger.info("No domain received, waiting")
                 time.sleep(0.5)
@@ -168,16 +156,9 @@ def main():
         logger.info(" [*] Image-scrape mode")
         logger.info(" [*] Processing domains from scrape queue")
         counter: int = 0
-        # main_loop_session = postgres_storage.get_persistent_session(main_loop_session_id)
         while True:
-            # TODO: REWORK INTO RECEIVING FROM RABBITMQ
-            if TEST:  # noqa: SIM108
-                domain = test_domains[counter % len(test_domains)]
-                if counter == len(test_domains):
-                    break
-                logger.info(f"Processing domain: {domain}")
-            else:
-                domain: str | None = rabbitmq_image_scrape_domain_consumer.receive_single_frame()
+            domain: str | None = rabbitmq_image_scrape_domain_consumer.receive_single_frame()
+
             if not domain:
                 logger.info("No domain received, waiting")
                 time.sleep(0.5)
