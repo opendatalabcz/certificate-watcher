@@ -64,15 +64,12 @@ app.add_middleware(
 )
 
 app.dependency_overrides[get_db] = postgres_storage.get_session
-app.include_router(auth.router)
-app.include_router(search_settings.router)
-app.include_router(flagged_data.router)
-app.include_router(images.router)
 
-
-@app.get("/")
-def read_root():
-    return {"Hello": "Worlds"}
+API_PREFIX = "/api"
+app.include_router(auth.router, prefix=API_PREFIX)
+app.include_router(search_settings.router, prefix=API_PREFIX)
+app.include_router(flagged_data.router, prefix=API_PREFIX)
+app.include_router(images.router, prefix=API_PREFIX)
 
 
 if __name__ == "__main__":
