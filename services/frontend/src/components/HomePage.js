@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import API from './api/axios';
 import SearchSettingCard from './searchSetting/SearchSettingCard';
-import { useAuth } from './authentication/AuthContext';  // Adjust the import path as necessary
+import { useAuth } from './authentication/AuthContext';
+import { Link } from "react-router-dom";
 
 const Homepage = () => {
     const [searchSettings, setSearchSettings] = useState([]);
@@ -36,10 +37,15 @@ const Homepage = () => {
 
     return (
         <div className="container mt-4">
-            <h2>Your Search Settings</h2>
+            <div className="d-flex justify-content-between align-items-center">
+                <h2>Your Search Settings</h2>
+                <Link to="/search-settings/create" className="btn btn-primary">
+                    <i className="fas fa-plus"></i> Create
+                </Link>
+            </div>
             {loading ? <p>Loading...</p> : error ? <p>{error}</p> : searchSettings.length > 0 ? (
                 searchSettings.map(setting => (
-                    <SearchSettingCard key={setting.id} setting={setting} />
+                    <SearchSettingCard key={setting.id} setting={setting}/>
                 ))
             ) : (
                 <p>No search settings available. Start by creating one.</p>
