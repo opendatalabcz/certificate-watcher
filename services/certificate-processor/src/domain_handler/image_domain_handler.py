@@ -45,7 +45,6 @@ class ImageDomainHandler(AbstractDomainHandler):
 
         self.postgres_storage.add([scan_history], db_session_id)
         self.postgres_storage.commit_persistent_session(db_session_id)
-        # Flush the session to get scan_history.id
         scan_history_id = scan_history.id
 
         try:
@@ -125,7 +124,8 @@ class ImageDomainHandler(AbstractDomainHandler):
     def __download_image(self, image_url) -> type(PILImage) | None:
         try:
             response = requests.get(image_url, timeout=3)
-            response.raise_for_status()  # Raises stored HTTPError, if one occurred
+            # Raise an HTTPError if the HTTP request returned an unsuccessful status code
+            response.raise_for_status()
 
             content = BytesIO(response.content)
             if self.SVG_RE.match(response.text):
@@ -150,39 +150,3 @@ class ImageDomainHandler(AbstractDomainHandler):
 
     def is_external_source(self, url, base_url):
         return urlparse(url).netloc != urlparse(base_url).netloc
-
-    # def check_retry_domain(self, flagged_data: FlaggedData, db_session_id: str | None = None) -> bool:
-    #     if flagged_data.note == NOTE_DB_MAPPING["SCRAPE_ERROR"]:
-    #         return self.check(flagged_data.domain, flagged_data, flagged_data.search_setting, db_session_id)
-    #
-    #     return True
-    #
-    # def check_retry_download_images(self, flagged_data: FlaggedData, images: list[Image], db_session_id: str | None = None) -> bool:
-    #     images_map: dict = {}
-    #
-    #     search_setting: SearchSetting = self.postgres_storage.get(SearchSetting, db_session_id, id=flagged_data.search_setting_id)[0]
-    #     local_path: str = None if not self.image_storage else f"{search_setting.owner.username}/{search_setting.domain_base}/{flagged_data.domain}"
-    #
-    #     for image in images:
-    #         images_map[image.name] = {"img": None, "src": image.image_url, "downloaded": False}
-    #         images_map[image.name]["img"] = self.__download_image(image.image_url)
-    #         images_map[image.name]["downloaded"] = bool(images_map[image.name]["img"])
-    #         image.note = None if images_map[image.name]["downloaded"] else NOTE_DB_MAPPING["IMG_DOWNLOAD_ERROR"]
-    #         image.format = images_map[image.name]["img"].format if images_map[image.name]["downloaded"] else None
-    #         image.local_path = local_path if images_map[image.name]["downloaded"] and local_path else None
-    #         image.hash = (
-    #             self.hash_handler.string_from_hash(self.hash_handler.hash_image(images_map[image.name]["img"])) if images_map[image.name]["img"] else None
-    #         )
-    #
-    #     if self.image_storage:
-    #         self.image_storage.save(images_map, local_path)
-    #
-    #     if search_setting.logo:
-    #         duplicate_image = self.check_for_duplicate_images(images, search_setting.logo)
-    #         if duplicate_image:
-    #             flagged_data.suspected_logo_found = duplicate_image.id
-    #             self.logger.info(f"Duplicate image found: {duplicate_image.name}")
-    #
-    #     if db_session_id:
-    #         self.postgres_storage.commit_persistent_session(db_session_id)
-    #     return True

@@ -11,6 +11,5 @@ class StringDomainHandler(AbstractDomainHandler):
             raise ValueError("No checker provided for StringDomainHandler")
         self.checker = checker
 
-    # TODO: fix return stuff a bit and add also whois check
     def check(self, domain) -> None | SearchSetting:
         return self.checker.check_domain(domain)
