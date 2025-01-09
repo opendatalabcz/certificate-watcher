@@ -34,15 +34,12 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            print("Username is None")
             raise CREDENTIALS_EXCEPTION
         token_data = TokenData(username=username)
     except JWTError as err:
-        print("JWTError")
         raise CREDENTIALS_EXCEPTION from err
     user = db.query(User).filter(User.username == token_data.username).first()
     if user is None:
-        print("User is None")
         raise CREDENTIALS_EXCEPTION
     return user
 
