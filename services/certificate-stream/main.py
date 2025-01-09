@@ -56,6 +56,12 @@ rabbitmq_handler.setup_producer()
 
 
 def callback(message, context):  # noqa: ARG001
+    """
+    Callback function for certstream events.
+    :param message:
+    :param context:
+    :return:
+    """
     if message["message_type"] == "heartbeat":
         return
 
