@@ -77,13 +77,11 @@ class FlaggedData(Base):
     note: Mapped[str | None] = mapped_column(String)
     last_scraped: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    # TODO: THINGS TO ADD, think about periodic scanning
     scan_frequency: Mapped[str] = mapped_column(String, nullable=True, comment="e.g., 'daily', 'weekly'")
     next_scheduled_scan: Mapped[DateTime] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String, default="active", nullable=False)
     times_scanned: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_status_change: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    # TODO: END
 
     # Relationship to SearchSetting
     search_setting = relationship("SearchSetting", back_populates="flagged_data", lazy="noload")

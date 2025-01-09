@@ -1,5 +1,5 @@
 import os
-from typing import Type, TypeVar
+from typing import TypeVar
 
 import psycopg2
 from sqlalchemy import create_engine, text
@@ -117,12 +117,9 @@ class SqlAlchemyStorage(AbstractStorage):
             self.persistent_sessions[session_name].close()
             del self.persistent_sessions[session_name]
 
-    def get(self, model: Type[model_base], persistent_session_id: str = None, filters: list = None, **kwargs) -> list:
+    def get(self, model: type[model_base], persistent_session_id: str = None, filters: list = None, **kwargs) -> list:
         if persistent_session_id and persistent_session_id not in self.persistent_sessions:
             raise ValueError(f"Persistent session with id '{persistent_session_id}' does not exist")
-
-        # with self.get_session() as session:
-        #     return session.query(model).filter_by(**kwargs).all()
 
         session = self.persistent_sessions[persistent_session_id] if persistent_session_id else self.get_session()
         query = session.query(model)

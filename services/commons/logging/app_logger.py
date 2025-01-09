@@ -17,7 +17,6 @@ class AppLogger:
         format_str = f"%(asctime)s - [{cls._app_name}] - %(levelname)s - %(name)s - %(message)s"
         date_format = "%Y-%m-%d %H:%M:%S"
 
-        # Configure the root logger
         logging.basicConfig(
             level=logging.INFO,
             format=format_str,
@@ -33,7 +32,6 @@ class AppLogger:
         error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(logging.Formatter(format_str, date_format))
 
-        # Adding a specific handler for error level to root logger
         logging.getLogger().addHandler(error_handler)
 
         cls._configured = True

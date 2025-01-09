@@ -35,8 +35,6 @@ class LocalImageStorage(AbstractImageStorage):
                 img_data["saved"] = True
             else:
                 img_data["saved"] = False
-        # with open(path, 'wb') as f:
-        #     f.write(data)
 
     def get(self, path: str) -> bytes:
         with open(path, "rb") as f:
@@ -60,10 +58,8 @@ class LocalImageStorage(AbstractImageStorage):
             path = os.path.join(dirpath, entry)
             # Check if it's a file or a directory
             if os.path.isdir(path):
-                # It's a directory, remove it and all its contents
                 shutil.rmtree(path)
             else:
-                # It's a file, remove it
                 os.remove(path)
         if directory == "":
             # Create empty .gitkeep file in root of the directory
