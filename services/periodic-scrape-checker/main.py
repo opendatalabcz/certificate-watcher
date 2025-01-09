@@ -67,8 +67,6 @@ rabbitmq_producer.setup_producer()
 
 SLEEP_PERIOD = 60 * 60 * 24 * 5  # Sleep for 1 day
 SCRAPED_BEFORE_DELTA = timedelta(days=5)
-# SLEEP_PERIOD = 60 * 5  # Sleep for 5 minutes
-# SCRAPED_BEFORE_DELTA = timedelta(minutes=5)
 
 
 def main():
