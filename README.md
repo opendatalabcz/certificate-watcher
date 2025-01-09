@@ -15,6 +15,7 @@ Link to the project GitHub: [certificate-watcher](https://github.com/opendatalab
 
 1. Clone the repository
 2. Add .env file to the root of the project according to the .env-example and fill it with your own values
+   - most importantly fill the `PROJECT_PATH` variable with the absolute path to the root of the project
    - you can and currently should use all other example values for development or test purposes
    - do NOT use example .env file in production
 3. Run `make build` in the root of the project
