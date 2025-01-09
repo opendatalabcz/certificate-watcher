@@ -44,6 +44,8 @@ class LocalImageStorage(AbstractImageStorage):
 
     def delete(self, path: str, is_dir: bool = False):
         full_path = os.path.join(self.storage_path, path)
+        if not os.path.exists(full_path):
+            return
         if is_dir:
             os.rmdir(full_path)
         else:
@@ -52,6 +54,8 @@ class LocalImageStorage(AbstractImageStorage):
     def clear_directory_keep(self, directory: str):
         # Iterate over all the entries in the directory
         dirpath = f"{self.storage_path}/{directory}"
+        if not os.path.exists(dirpath):
+            return
         for entry in os.listdir(dirpath):
             path = os.path.join(dirpath, entry)
             # Check if it's a file or a directory
