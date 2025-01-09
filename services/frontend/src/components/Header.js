@@ -5,8 +5,6 @@ import { useAuth } from './authentication/AuthContext';
 const Header = () => {
     const { authState, logout } = useAuth();
     const navigate = useNavigate();
-    console.log("Authenticated:", authState.isAuthenticated);
-    console.log("Admin:", authState.isAdmin);
     const handleLogout = () => {
         logout();
         navigate('/login');

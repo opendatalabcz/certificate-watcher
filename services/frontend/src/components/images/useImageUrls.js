@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import API from '../api/axios';  // Ensure this is correctly pointing to your Axios configuration
 
 const useImageUrls = (images) => {
-    console.log(images);
+
     const [imageUrls, setImageUrls] = useState({});
 
     useEffect(() => {
@@ -11,7 +11,6 @@ const useImageUrls = (images) => {
             for (let img of images) {
                 if (img.local_path) {
                     const imagePath = `/files/${encodeURIComponent(img.local_path)}/${encodeURIComponent(img.name)}.${encodeURIComponent(img.format.toLowerCase())}`;
-                    console.log(imagePath);
                     try {
                         const response = await API.get(imagePath, { responseType: 'blob' });
                         const blobUrl = URL.createObjectURL(response.data);

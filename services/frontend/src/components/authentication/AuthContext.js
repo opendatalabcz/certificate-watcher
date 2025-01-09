@@ -23,7 +23,6 @@ export const AuthProvider = ({ children }) => {
     const login = (token) => {
         localStorage.setItem('token', token);
         const decoded = jwtDecode(token);  // Decode token to check admin status
-        console.log(decoded);
         setAuthState({
             isAuthenticated: true,
             isAdmin: decoded.is_admin  // Adjust the condition based on your token structure

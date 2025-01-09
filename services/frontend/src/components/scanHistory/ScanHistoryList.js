@@ -8,7 +8,7 @@ const ScanHistoryList = ({ scanHistories }) => {
         // Toggle visibility for the corresponding history
         setVisibleHistoryId((prev) => (prev === historyId ? null : historyId));
     };
-    console.log(scanHistories);
+
     return (
         <div className="scan-history-list">
             {scanHistories.map((history) => (

@@ -3,7 +3,6 @@ import useImageUrls from './useImageUrls';
 
 const ImageDetailsTable = ({ images }) => {
     const imageUrls = useImageUrls(images);
-    console.log(imageUrls);
     return (
         <table className="table table-dark table-striped">
             <thead>

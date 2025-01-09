@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const FlaggedDataList = ({ flaggedData }) => {
-    console.log(flaggedData);
     return (
         <table className="table table-dark">
             <thead>
