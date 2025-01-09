@@ -175,6 +175,7 @@ services:
       context: "services/frontend"
     depends_on:
       - backend
+      - nginx
     restart: always
 
   nginx:
@@ -185,9 +186,6 @@ services:
     ports:
       - "80:80"
     restart: always
-    depends_on:
-      - frontend
-      - backend
 
 
 networks:
