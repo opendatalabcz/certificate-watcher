@@ -1,6 +1,7 @@
 # certificate-watcher
 
 This project is a SSL certificate scanning and phishing prevention tool.
+Link to the project GitHub: [certificate-watcher](https://github.com/opendatalabcz/certificate-watcher)
 
 ## Getting started
 
