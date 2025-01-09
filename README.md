@@ -14,7 +14,6 @@ This project is a SSL certificate scanning and phishing prevention tool.
 
 1. Clone the repository
 2. Add .env file to the root of the project according to the .env-example and fill it with your own values
-   - most importantly fill the `PROJECT_PATH` variable with the absolute path to the root of the project
    - you can and currently should use all other example values for development or test purposes
    - do NOT use example .env file in production
 3. Run `make build` in the root of the project
@@ -33,11 +32,10 @@ This project is a SSL certificate scanning and phishing prevention tool.
 
 Service for inital watching of the certificate stream and its first processing. Currently in test state.
 
-- [x] Add loggers to certificate-stream
 
 ### certificate-processor
 
-Service for processing the certificate stream. Currently in planning state.
+Service for processing the certificate stream.
 
 Supports multiple string matching algorithms for detecting suspicious domains.
 Currently supports:
@@ -50,19 +48,14 @@ Currently supports:
 - domain fuzzing with levenshtein ratio (`levensh-fuzz`)
   - looks if checked domain is similar to predefined strings created by fuzzing of legitimate domain according to levenshtein ratio
 
-TODO:
-- [ ] Add configuration to certificate-processor
-- [x] Save suspicioous domains to database - v1
-- [x] Add loggers to certificate-processor
+### periodic-checker
+
+Service for periodic checking of stored domains for rescanning.
 
 ### rabbitmq
 
 RabbitMQ for the certificate stream. Currently running allongside others in docker-compose.
 GUI available at `localhost:15672`.
-
-TODO:
-- [ ] Add user and password to rabbitmq
-- [ ] Add configuration to rabbitmq
 
 ### postgres
 
@@ -79,6 +72,10 @@ Service for backend API to manage project
 ### frontend
 
 Service for GUI to manage project
+
+### nginx
+
+Nginx for routing between services. Currently running allongside others in docker-compose.
 
 ## Git workflow
 
