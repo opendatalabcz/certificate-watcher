@@ -42,6 +42,8 @@ try:
     RABBITMQ_CONNECTION_INFO.username = os.environ.get("RABBITMQ_DEFAULT_USER")
     RABBITMQ_CONNECTION_INFO.password = os.environ.get("RABBITMQ_DEFAULT_PASS")
 
+    DATA_SOURCE = os.environ.get("DATA_SOURCE", "stream")
+
     logger.info("Loaded environment variables")
     logger.info("Config loaded successfully")
 
@@ -52,34 +54,50 @@ except Exception as e:
 rabbitmq_handler = RabbitMQStreamHandler(connection_parameters=RABBITMQ_CONNECTION_INFO)
 rabbitmq_handler.setup_producer()
 
-# TODO: Remove after final debug
-test = False
-count = 0
-
 
 def callback(message, context):  # noqa: ARG001
-    # TODO: Remove after final debug
-    global count  # noqa: PLW0603
     if message["message_type"] == "heartbeat":
         return
 
     if message["message_type"] == "certificate_update":
         all_domains = message["data"]["leaf_cert"]["all_domains"]
 
-        # TODO: Remove after final debug
-        if test:
-            rabbitmq_handler.send(str(count))
-            count += 1
-            logger.info(f"Sent to stream -> {count}")
-        else:
-            for domain in all_domains:
-                rabbitmq_handler.send(domain)
+        for domain in all_domains:
+            rabbitmq_handler.send(domain)
 
-            logger.info(f"Sent to stream -> {', '.join(all_domains)}")
+        logger.info(f"Sent to stream -> {', '.join(all_domains)}")
+
+
+def process_files(directory):
+    """
+    Iterate over files in the specified directory and process each domain.
+
+    :param directory: Path to the directory containing the domain files.
+    """
+    files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+    files.sort()
+
+    for file_name in files:
+        file_path = os.path.join(directory, file_name)
+        print(f"Processing file: {file_name}")
+
+        with open(file_path) as file:
+            for line in file:
+                domain = line.strip()
+                if domain:  # Ensure no empty lines
+                    try:
+                        rabbitmq_handler.send(domain)
+                        print(f"Sent domain: {domain}")
+                    except Exception as e:
+                        print(f"Error sending domain {domain}: {e}")
 
 
 def main():
-    certstream.listen_for_events(callback, url=CERTSTREAM_URL)
+    if DATA_SOURCE == "stream":
+        certstream.listen_for_events(callback, url=CERTSTREAM_URL)
+    elif DATA_SOURCE == "testdata":
+        dir_path = "testdata"
+        process_files(dir_path)
 
 
 if __name__ == "__main__":
