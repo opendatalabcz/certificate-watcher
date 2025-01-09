@@ -17,4 +17,6 @@ docker compose up -d periodic-scrape-checker
 docker compose up -d backend
 docker compose up -d frontend
 
+docker compose up -d nginx
+
 echo "All services are up and running"
