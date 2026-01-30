@@ -109,4 +109,4 @@ use `[project]` if the commit is not related to a specific service.
 
 This software was developed with the support of the **Faculty of Information Technology, Czech Technical University in Prague**.
 For more information, visit [fit.cvut.cz](https://fit.cvut.cz).
-You can find the open repository at []().
+You can find the open repository at [https://github.com/opendatalabcz/certificate-watcher](https://github.com/opendatalabcz/certificate-watcher).
